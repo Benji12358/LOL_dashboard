@@ -1,0 +1,565 @@
+from flask import Flask, render_template, jsonify, request
+from flask_cors import CORS
+from database import DatabaseManager
+import logging
+from datetime import datetime
+import subprocess
+import sys
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__, static_folder='static', template_folder='templates')
+CORS(app)
+
+db = DatabaseManager()
+
+@app.route('/')
+def index():
+    """Render the main dashboard"""
+    return render_template('index.html')
+
+@app.route('/champions')
+def champions_page():
+    """Render the champions page"""
+    return render_template('champions.html')
+
+@app.route('/matches')
+def matches_page():
+    """Render the matches page"""
+    return render_template('matches.html')
+
+@app.route('/api/summoner-by-name')
+def api_summoner_by_name():
+    """
+    Get summoner puuid by gameName.
+    Query params:
+      - name (required): summoner name
+    Response:
+      { "puuid": "...", "summoner_name": "...", "summoner_tag": "..." }
+    """
+    try:
+        name = request.args.get('name', '').strip()
+        if not name:
+            return jsonify({'error': 'name parameter required'}), 400
+        
+        summoners = db.fetch_data('summoner', filters={'summoner_name': name})
+        if summoners:
+            return jsonify(summoners[0])
+        return jsonify({'error': 'summoner not found'}), 404
+    except Exception as e:
+        logger.error(f"api_summoner_by_name error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/summary')
+def api_summary():
+    """
+    Returns overall summary for a summoner.
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid parameter required'}), 400
+
+        # Filter out remakes and ARAM with gameStatusProcess field
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
+        if not parts:
+            return jsonify({'error': 'no matches found'}), 404
+
+        total_games = len({p['gameId'] for p in parts})
+        total_kills = sum((p.get('kills') or 0) for p in parts)
+        total_deaths = sum((p.get('deaths') or 0) for p in parts)
+        total_assists = sum((p.get('assists') or 0) for p in parts)
+
+        wins = 0
+        losses = 0
+        seen_games = set()
+        for p in parts:
+            gid = p.get('gameId')
+            if gid in seen_games:
+                continue
+            seen_games.add(gid)
+            team_rows = db.fetch_data('game_team', filters={'gameId': gid, 'teamId': p.get('teamId')})
+            if team_rows:
+                win_val = team_rows[0].get('win')
+                win_flag = str(win_val).lower() in ('true', 't', '1', 'yes', 'y', 'win') if win_val else False
+                if win_flag:
+                    wins += 1
+                else:
+                    losses += 1
+
+        winrate = (wins / max(1, (wins + losses))) * 100 if (wins + losses) > 0 else 0.0
+        kda = (total_kills + total_assists) / max(1, total_deaths)
+        avg_kda = kda / max(1, total_games) if total_games > 0 else kda
+
+        summoner_row = db.fetch_data('summoner', filters={'puuid': puuid})
+        summoner = summoner_row[0] if summoner_row else {'puuid': puuid}
+
+        return jsonify({
+            'summoner': summoner,
+            'total_games': total_games,
+            'wins': wins,
+            'losses': losses,
+            'winrate': round(winrate, 2),
+            'total_kills': total_kills,
+            'total_deaths': total_deaths,
+            'total_assists': total_assists,
+            'kda': round(kda, 2),
+            'avg_kda': round(avg_kda, 2)
+        })
+    except Exception as e:
+        logger.error(f"api_summary error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/champions')
+def api_champions():
+    """
+    Aggregated performance per champion for a summoner.
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        if not parts:
+            return jsonify([])
+
+        by_champ = {}
+        for p in parts:
+            champ = p.get('championName') or 'unknown'
+            entry = by_champ.setdefault(champ, {
+                'matches': 0, 'wins': 0, 'losses': 0, 
+                'kills': 0, 'deaths': 0, 'assists': 0,
+                'cs': 0, 'duration': 0
+            })
+            entry['matches'] += 1
+            entry['kills'] += (p.get('kills') or 0)
+            entry['deaths'] += (p.get('deaths') or 0)
+            entry['assists'] += (p.get('assists') or 0)
+            entry['cs'] += (p.get('totalMinionsKilled') or 0)
+            entry['duration'] += (int(p.get('gameDuration') or 0))
+
+            gid = p.get('gameId')
+            team_rows = db.fetch_data('game_team', filters={'gameId': gid, 'teamId': p.get('teamId')})
+            if team_rows:
+                w = team_rows[0].get('win')
+                win_flag = str(w).lower() in ('true', 't', '1', 'yes', 'y', 'win') if w else False
+                if win_flag:
+                    entry['wins'] += 1
+                else:
+                    entry['losses'] += 1
+
+        out = []
+        for champ, v in by_champ.items():
+            matches = v['matches']
+            wins = v['wins']
+            losses = v['losses']
+            avg_kills = v['kills'] / matches if matches else 0
+            avg_deaths = v['deaths'] / matches if matches else 0
+            avg_assists = v['assists'] / matches if matches else 0
+            avg_cs = v['cs'] / matches if matches else 0
+            avg_duration = v['duration'] / matches if matches else 0
+            avg_kda = (avg_kills + avg_assists) / max(1, avg_deaths)
+            winrate = (wins / max(1, (wins + losses))) * 100 if (wins + losses) > 0 else 0.0
+            out.append({
+                'champion_name': champ,
+                'matches': matches,
+                'wins': wins,
+                'losses': losses,
+                'winrate': round(winrate, 1),
+                'avg_kills': round(avg_kills, 1),
+                'avg_deaths': round(avg_deaths, 1),
+                'avg_assists': round(avg_assists, 1),
+                'avg_kda': round(avg_kda, 1),
+                'avg_cs': round(avg_cs, 1),
+                'avg_duration': avg_duration
+            })
+
+        out.sort(key=lambda x: x['matches'], reverse=True)
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"api_champions error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/summoner-default')
+def api_summoner_default():
+    """
+    Get first summoner from database.
+    """
+    try:
+        summoners = db.fetch_data('summoner')
+        if summoners:
+            return jsonify(summoners[0])
+        return jsonify({'error': 'no summoner in database'}), 404
+    except Exception as e:
+        logger.error(f"api_summoner_default error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/matches')
+def api_matches():
+    """
+    Return list of matches for a puuid with pagination and filters.
+    Query params:
+      - puuid (required)
+      - limit (optional, default 10)
+      - offset (optional, default 0)
+      - gameMode (optional: all, normal, solo, flex, swiftplay)
+      - role (optional: all, TOP, JUNGLE, MIDDLE, BOTTOM, SUPPORT)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        limit = int(request.args.get('limit') or 10)
+        offset = int(request.args.get('offset') or 0)
+        gameMode = request.args.get('gameMode', 'all').lower()
+        role = request.args.get('role', 'all').upper()
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        
+        # Filter out remakes
+        parts = [p for p in parts if p.get('gameStatusProcess') != 'Avoid']
+
+        # Filter by game mode
+        if gameMode != 'all':
+            gameModeFull = {
+                # 'normal': 'Normal Draft',
+                # 'solo': 'Ranked Solo/5v5',
+                # 'flex': 'Ranked Flex SR',
+                # 'swiftplay': 'Swift Play'
+                'normal': 'normal',
+                'solo': 'solo',
+                'flex': 'flex',
+                'swiftplay': 'swiftplay'
+            }.get(gameMode, '')
+            if gameModeFull:
+                parts = [p for p in parts if p.get('gameMode') == gameModeFull]
+
+        # Filter by role
+        if role != 'ALL':
+            role_map = {
+                'TOP': 'TOP',
+                'JUNGLE': 'JUNGLE',
+                'MIDDLE': 'MIDDLE',
+                'MID': 'MIDDLE',
+                'BOTTOM': 'BOTTOM',
+                'ADC': 'BOTTOM',
+                'SUPPORT': 'UTILITY'
+            }
+            role_normalized = role_map.get(role, role)
+            parts = [p for p in parts if (p.get('individualPosition') or '').upper() == role_normalized]
+
+        games = {}
+        for p in parts:
+            gid = p.get('gameId')
+            if gid not in games:
+                games[gid] = p
+        
+        game_list = sorted(games.values(), 
+                          key=lambda x: int(x.get('gameEndTimestamp') or 0), 
+                          reverse=True)
+        
+        paginated = game_list[offset:offset + limit]
+        
+        out = []
+        for p in paginated:
+            gid = p.get('gameId')
+            kills = p.get('kills') or 0
+            deaths = p.get('deaths') or 0
+            assists = p.get('assists') or 0
+            kda = round((kills + assists) / max(1, deaths), 2)
+            position = p.get('individualPosition') or 'UNKNOWN'
+            game_timestamp = int(p.get('gameEndTimestamp') or 0)
+            game_duration = int(p.get('gameDuration') or 0)
+            game_mode = p.get('gameMode') or 'Unknown'
+            
+            opponent_champ = 'Unknown'
+            opponent_team = 200 if p.get('teamId') == 100 else 100
+            opponents = db.fetch_data('game_participants', filters={
+                'gameId': gid,
+                'teamId': opponent_team,
+                'individualPosition': position
+            })
+            opponent_kills = 0
+            opponent_deaths = 0
+            opponent_assists = 0
+            opponent_kda = 0.0
+            opponent_cs = 0
+            opponent_gold = 0
+            opponent_items = [0] * 6
+            opponent_summoner1 = 0
+            opponent_summoner2 = 0
+            
+            if opponents:
+                opp = opponents[0]
+                opponent_champ = opp.get('championName') or 'Unknown'
+                opponent_kills = opp.get('kills') or 0
+                opponent_deaths = opp.get('deaths') or 0
+                opponent_assists = opp.get('assists') or 0
+                opponent_kda = round((opponent_kills + opponent_assists) / max(1, opponent_deaths), 2)
+                opponent_cs = opp.get('totalMinionsKilled') or 0
+                opponent_gold = opp.get('goldEarned') or 0
+                opponent_items = [opp.get(f'item{i}') or 0 for i in range(6)]
+                opponent_summoner1 = opp.get('summoner1Id') or 0
+                opponent_summoner2 = opp.get('summoner2Id') or 0
+            
+            team_rows = db.fetch_data('game_team', filters={'gameId': gid, 'teamId': p.get('teamId')})
+            win = False
+            if team_rows:
+                w = team_rows[0].get('win')
+                if isinstance(w, str):
+                    win = w.lower() in ('true', 't', '1', 'yes', 'y', 'win')
+            
+            items = [p.get(f'item{i}') or 0 for i in range(6)]
+            summoner1 = p.get('summoner1Id') or 0
+            summoner2 = p.get('summoner2Id') or 0
+
+            out.append({
+                'gameId': gid,
+                'position': position,
+                'champion_name': p.get('championName') or 'Unknown',
+                'opponent_champion': opponent_champ,
+                'kills': kills,
+                'deaths': deaths,
+                'assists': assists,
+                'kda': kda,
+                'goldEarned': p.get('goldEarned'),
+                'totalMinionsKilled': p.get('totalMinionsKilled'),
+                'item0': items[0],
+                'item1': items[1],
+                'item2': items[2],
+                'item3': items[3],
+                'item4': items[4],
+                'item5': items[5],
+                'summoner1Id': summoner1,
+                'summoner2Id': summoner2,
+                'opponent_kills': opponent_kills,
+                'opponent_deaths': opponent_deaths,
+                'opponent_assists': opponent_assists,
+                'opponent_kda': opponent_kda,
+                'opponent_cs': opponent_cs,
+                'opponent_gold': opponent_gold,
+                'opponent_item0': opponent_items[0],
+                'opponent_item1': opponent_items[1],
+                'opponent_item2': opponent_items[2],
+                'opponent_item3': opponent_items[3],
+                'opponent_item4': opponent_items[4],
+                'opponent_item5': opponent_items[5],
+                'opponent_summoner1Id': opponent_summoner1,
+                'opponent_summoner2Id': opponent_summoner2,
+                'win': win,
+                'gameEndTimestamp': game_timestamp,
+                'gameDuration': game_duration,
+                'gameMode': game_mode
+            })
+        
+        return jsonify({
+            'matches': out,
+            'total': len(game_list),
+            'offset': offset,
+            'limit': limit
+        })
+    except Exception as e:
+        logger.error(f"api_matches error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/available-roles')
+def api_available_roles():
+    """
+    Get list of roles played by summoner.
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        parts = [p for p in parts if p.get('gameStatusProcess') != 'Avoid']
+        
+        roles = set()
+        for p in parts:
+            pos = (p.get('individualPosition') or '').upper()
+            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT']:
+                roles.add(pos)
+        
+        return jsonify({'roles': sorted(list(roles))})
+    except Exception as e:
+        logger.error(f"api_available_roles error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/database/delete', methods=['POST'])
+def api_database_delete():
+    """
+    Delete all tables from database.
+    """
+    try:
+        db.delete_tables()
+        logger.info("Database tables deleted")
+        return jsonify({'success': True, 'message': 'Database cleared'})
+    except Exception as e:
+        logger.error(f"api_database_delete error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/database/update', methods=['POST'])
+def api_database_update():
+    """
+    Run main() from test.py to fetch and update matches.
+    """
+    try:
+        # Import and run main from test.py
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from test import main
+        
+        logger.info("Starting database update...")
+        main()
+        logger.info("Database update completed")
+        return jsonify({'success': True, 'message': 'Database updated successfully'})
+    except Exception as e:
+        logger.error(f"api_database_update error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/role-stats')
+def api_role_stats():
+    """
+    Role performance stats (winrate per role).
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        # Filter out remakes and ARAM with gameStatusProcess field
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
+        if not parts:
+            return jsonify([])
+
+        by_role = {}
+        for p in parts:
+            role = p.get('individualPosition') or 'UNKNOWN'
+            entry = by_role.setdefault(role, {'matches': 0, 'wins': 0})
+            entry['matches'] += 1
+
+            gid = p.get('gameId')
+            team_rows = db.fetch_data('game_team', filters={'gameId': gid, 'teamId': p.get('teamId')})
+            if team_rows:
+                w = team_rows[0].get('win')
+                win_flag = str(w).lower() in ('true', 't', '1', 'yes', 'y', 'win') if w else False
+                if win_flag:
+                    entry['wins'] += 1
+
+        out = []
+        for role, v in by_role.items():
+            matches = v['matches']
+            wins = v['wins']
+            winrate = (wins / max(1, matches)) * 100 if matches > 0 else 0.0
+            out.append({
+                'role': role,
+                'matches': matches,
+                'wins': wins,
+                'winrate': round(winrate, 2)
+            })
+        
+        out.sort(key=lambda x: x['matches'], reverse=True)
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"api_role_stats error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ping-stats')
+def api_ping_stats():
+    """
+    Aggregated ping statistics.
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        if not parts:
+            return jsonify({})
+
+        ping_types = [
+            'allInPings', 'assistMePings', 'basicPings', 'commandPings',
+            'dangerPings', 'enemyMissingPings', 'enemyVisionPings',
+            'getBackPings', 'holdPings', 'needVisionPings', 'onMyWayPings',
+            'pushPings', 'retreatPings', 'visionClearedPings'
+        ]
+
+        totals = {}
+        for ping_type in ping_types:
+            totals[ping_type] = sum((p.get(ping_type) or 0) for p in parts)
+
+        return jsonify(totals)
+    except Exception as e:
+        logger.error(f"api_ping_stats error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/health')
+def api_health():
+    try:
+        tables = db.get_all_tables()
+        return jsonify({'status': 'healthy', 'tables': tables})
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+@app.route('/api/opponent-elo-distribution')
+def api_opponent_elo_distribution():
+    """
+    Get distribution of opponent ranks faced by a summoner.
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        # Filter out remakes and ARAM with gameStatusProcess field
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
+        opponent_ranks = []
+
+        # For each game, get opponent at same position
+        for p in parts:
+            gid = p.get('gameId')
+            position = p.get('individualPosition') or 'UNKNOWN'
+            team_id = p.get('teamId')
+
+            # Get opponent team
+            opponent_team = 200 if team_id == 100 else 100
+
+            # Fetch opponent at same position
+            opponents = db.fetch_data('game_participants', filters={
+                'gameId': gid,
+                'teamId': opponent_team,
+                'individualPosition': position
+            })
+
+            if opponents:
+                opp = opponents[0]
+                rank = opp.get('current_rank')
+                if rank:
+                    opponent_ranks.append({'rank': rank})
+        
+        return jsonify({
+            'opponents': opponent_ranks,
+            'total': len(opponent_ranks)
+        })
+    except Exception as e:
+        logger.error(f"api_opponent_elo_distribution error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

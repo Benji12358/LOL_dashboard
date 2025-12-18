@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: lol_database
+    environment:
+      POSTGRES_USER: lol_user
+      POSTGRES_PASSWORD: lol_password
+      POSTGRES_DB: lol_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lol_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Python API Script
+  api_fetcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lol_api_fetcher
+    environment:
+      DATABASE_URL: postgresql://lol_user:lol_password@db:5432/lol_database
+      API_URL: https://api.example.com
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python test.py
+
+  # Web Interface (Flask/Node.js)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: lol_web_interface
+    environment:
+      DATABASE_URL: postgresql://lol_user:lol_password@db:5432/lol_database
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    command: python app.py
+
+volumes:
+  postgres_data:

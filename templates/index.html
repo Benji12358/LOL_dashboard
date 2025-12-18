@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LoL Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-content">
+      <div class="summoner-info">
+        <h1 id="summoner-name">Loading...</h1>
+        <div id="summoner-tag" class="tag">—</div>
+      </div>
+      
+      <div class="summary-metrics">
+        <div class="metric">
+          <div class="metric-label">Winrate</div>
+          <div class="metric-value" id="winrate">—</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">KDA</div>
+          <div class="metric-value" id="kda">—</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Wins / Losses</div>
+          <div class="metric-value" id="wl">—</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Games</div>
+          <div class="metric-value" id="games-count">—</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="db-update-btn" class="db-action-btn update-btn" title="Update Database">
+          <span>🔄</span> Update
+        </button>
+        <button id="db-delete-btn" class="db-action-btn delete-btn" title="Clear Database">
+          <span>🗑️</span> Clear
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main">
+    <section class="left-col">
+      <div class="card">
+        <h2>Role Stats</h2>
+        <canvas id="role-stats-chart" height="200"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Opponents Elo Distribution</h2>
+        <canvas id="opponent-elo-chart" height="250"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Top Champions</h2>
+        <div id="champions-list" class="champ-column"></div>
+      </div>
+
+      <div class="card">
+        <h2>Ping Stats</h2>
+        <div id="ping-stats" class="ping-grid"></div>
+      </div>
+    </section>
+
+    <section class="right-col">
+      <div class="card">
+        <h2>Recent Matches</h2>
+        
+        <div class="match-filters">
+          <div class="filter-group">
+            <label>Game Mode:</label>
+            <div class="filter-buttons">
+              <button class="filter-btn active" data-filter="gameMode" data-value="all">All</button>
+              <button class="filter-btn" data-filter="gameMode" data-value="normal">Normal</button>
+              <button class="filter-btn" data-filter="gameMode" data-value="solo">Solo</button>
+              <button class="filter-btn" data-filter="gameMode" data-value="flex">Flex</button>
+              <button class="filter-btn" data-filter="gameMode" data-value="swiftplay">Swift</button>
+            </div>
+          </div>
+
+          <div class="filter-group" style="margin-right: 0; margin-left: auto;">
+            <label>Role:</label>
+            <div class="filter-buttons role-buttons">
+              <button class="filter-btn active role-btn" data-filter="role" data-value="all" title="All Roles">All</button>
+              <button class="filter-btn role-btn" data-filter="role" data-value="TOP" title="Top">
+                <img src="static/assets/roles/Top_icon.png" alt="Top">
+              </button>
+              <button class="filter-btn role-btn" data-filter="role" data-value="JUNGLE" title="Jungle">
+                <img src="static/assets/roles/Jungle_icon.png" alt="Jungle">
+              </button>
+              <button class="filter-btn role-btn" data-filter="role" data-value="MIDDLE" title="Mid">
+                <img src="static/assets/roles/Middle_icon.png" alt="Mid">
+              </button>
+              <button class="filter-btn role-btn" data-filter="role" data-value="BOTTOM" title="ADC">
+                <img src="static/assets/roles/Adc_icon.png" alt="ADC">
+              </button>
+              <button class="filter-btn role-btn" data-filter="role" data-value="SUPPORT" title="Support">
+                <img src="static/assets/roles/Support_icon.png" alt="Support">
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="matches-list" class="matches-list"></div>
+        <button id="load-more-btn" class="load-more-btn">Load More Matches</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

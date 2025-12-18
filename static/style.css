@@ -1,0 +1,336 @@
+/* Minimal styling inspired by dpm.lol color palette */
+:root{
+  --bg:#040a25;
+  --card:#0f1a2b;
+  --accent:#d7b04a;
+  --muted:#9fa3a6;
+  --win:#156ee2;
+  --loss:#ff5c66;
+  --glass: rgba(255,255,255,0.03);
+  --border: rgba(216,176,74,0.08);
+}
+
+*{box-sizing:border-box;font-family:Inter,Segoe UI,Helvetica,Arial;}
+
+body{
+  background: linear-gradient(180deg,var(--bg),#071028);
+  color:#e6dac2;margin:0;
+}
+
+.container{max-width:1400px;margin:0 auto;padding:20px;}
+
+.header{border-bottom:1px solid var(--border);padding:20px 0;}
+.header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.summoner-info {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.summary-metrics {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.db-action-btn {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: #e6dac2;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.db-action-btn:hover {
+  background: var(--accent);
+  color: #081428;
+}
+
+.update-btn {
+  border-color: #0adf7a;
+}
+
+.delete-btn {
+  border-color: #ff5c66;
+}
+
+.summoner-info{display:flex;align-items:baseline;gap:10px;}
+.summoner-info h1{font-size:28px;margin:0;}
+.tag{color:var(--muted);font-size:14px;}
+
+.summary-metrics{display:flex;gap:18px;flex-wrap:wrap;}
+.metric{background:var(--card);padding:12px 16px;border-radius:8px;min-width:100px;text-align:center;border:1px solid var(--border);}
+.metric-label{font-size:12px;color:var(--muted);}
+.metric-value{font-size:18px;color:var(--accent);font-weight:700;}
+
+.main{display:flex;gap:24px;margin-top:24px;}
+.left-col{flex:1;}
+.right-col{flex:3;}
+
+.card{background:linear-gradient(180deg,var(--card),#081428);padding:16px;border-radius:10px;margin-bottom:18px;border:1px solid var(--border);}
+.card h2{margin:0 0 12px 0;font-size:16px;color:var(--accent);}
+
+/* Role Stats Chart */
+#role-stats-chart {
+  background: var(--glass);
+  border-radius: 6px;
+  padding: 4px;
+  height: 200px !important;
+  max-height: 280px !important;
+  display: block;
+}
+
+/* Ping Stats Grid */
+.ping-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+.ping-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:var(--glass);padding:8px;border-radius:6px;cursor:pointer;transition:background 0.2s;
+}
+.ping-item:hover{background:rgba(216,176,74,0.1);}
+.ping-icon{width:24px;height:24px;object-fit:contain;}
+.ping-value{font-size:12px;color:var(--accent);font-weight:600;}
+
+/* Champions */
+.champ-column{
+  display:flex;flex-direction:column;gap:10px;
+}
+.champ-card{
+  display:flex;align-items:center;gap:10px;background:var(--glass);padding:10px;border-radius:6px;
+  cursor:pointer;transition:background 0.2s;
+}
+.champ-card:hover{background:rgba(216,176,74,0.1);}
+.champ-icon{width:50px;height:50px;object-fit:cover;border-radius:4px;flex-shrink:0;}
+.champ-info{flex:1;}
+.champ-name{font-size:13px;font-weight:600;color:var(--accent);}
+.champ-meta{font-size:12px;color:var(--muted);}
+.champ-stats{font-size:12px;font-weight:600;}
+.champ-kills{color:#90ee90;}
+.champ-deaths{color:#ff5c66;}
+.champ-assists{color:#87ceeb;}
+.champ-kda{margin-left:6px;}
+.champ-cs{font-size:11px;color:var(--muted);}
+
+/* Matches */
+.matches-list{display:flex;flex-direction:column;gap:12px;}
+.match-date-group{margin-bottom:12px;}
+.match-date{
+  font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);
+}
+
+.match-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr 2fr 2fr 4fr; /* 1/10, 1/10, 2/10, 2/10, 4/10 via fr units */
+  gap:12px;align-items:center;
+  padding:10px;border-radius:8px;background:var(--glass);
+  border-left:4px solid var(--loss);margin:4px 0;
+}
+.match-row.win{border-left-color:var(--win);background:rgba(10, 109, 223, 0.08);}
+.match-row.loss{background:rgba(255,92,102,0.08);}
+
+.match-gameinfo{display:flex;flex-direction:column;gap:3px;font-size:13px;}
+.match-gamemode{font-weight:600;color:var(--accent);}
+.match-duration,.match-time{color:var(--muted);font-size:12px;}
+
+.match-champ{display:flex;justify-content:center;}
+.champ-wrapper{position:relative;width:60px;height:60px;}
+.match-champ-icon{
+  width:60px;height:60px;border-radius:4px;object-fit:cover;
+  border:2px solid var(--border);
+}
+.match-role-icon{
+  position:absolute;bottom:0;left:0;width:20px;height:20px;
+  background:var(--card);border-radius:2px;padding:2px;
+  border:1px solid var(--border);object-fit:contain;
+}
+
+.match-stats{display:flex;flex-direction:column;gap:3px;}
+.match-kda-line{
+  font-size:15px;font-weight:600;
+}
+.match-kills{color:#90ee90;}
+.match-deaths{color:#ff5c66;}
+.match-assists{color:#87ceeb;}
+.match-kda{margin-left:6px;font-weight:700;}
+.match-gold{font-size:13px;color:var(--muted);}
+
+/* Items Section */
+.items-section{
+  display:flex;gap:8px;align-items:center;
+}
+.summoner-spells{
+  display:flex;flex-direction:column;gap:4px;
+}
+.sumspell-icon{
+  width:24px;height:24px;border-radius:2px;object-fit:cover;
+  border:1px solid var(--border);
+}
+.items-grid{
+  display:grid;grid-template-columns:repeat(3,32px);gap:4px;
+}
+.item-icon{
+  width:32px;height:32px;border-radius:2px;object-fit:cover;
+  border:1px solid var(--border);
+}
+.item-slot-empty{
+  width:32px;height:32px;border-radius:2px;background:var(--glass);
+  border:1px solid var(--border);
+}
+
+.match-vs{
+  display:flex;flex-direction:column;gap:6px;
+}
+.opponent-header{
+  font-size:13px;font-weight:600;color:var(--accent);
+  text-align:center;margin-bottom:2px;
+}
+.opponent-wrapper{
+  display:flex;
+  grid-template-columns: 1fr 2fr 2fr; /* 1/5, 2/5, 2/5 via fr units */
+  gap:15px;align-items:center;
+  background:var(--glass);padding:6px;border-radius:4px;
+}
+.match-opponent-icon{
+  width:40px;height:40px;border-radius:3px;object-fit:cover;
+  border:1px solid var(--border);flex-shrink:0;
+}
+.opponent-stats{
+  display:flex;flex-direction:column;gap:2px;font-size:12px;
+}
+.opponent-stats > div:first-child{font-weight:600;}
+.opponent-kills{color:#90ee90;}
+.opponent-deaths{color:#ff5c66;}
+.opponent-assists{color:#87ceeb;}
+.opponent-kda{margin-left:6px;font-weight:700;}
+.opponent-gold{color:var(--muted);font-size:11px;}
+
+/* Load More Button */
+.load-more-btn{
+  width:100%;padding:12px;margin-top:12px;
+  background:var(--accent);color:#081428;border:none;border-radius:6px;
+  font-weight:700;cursor:pointer;transition:opacity 0.2s;
+}
+.load-more-btn:hover{opacity:0.9;}
+
+/* Opponent Elo Chart */
+#opponent-elo-chart {
+  background: var(--glass);
+  border-radius: 6px;
+  padding: 8px;
+  height: 250px !important;
+  max-height: 250px !important;
+  display: block;
+}
+
+/* Match filters */
+.match-filters {
+  display: flex;
+  grid-template-columns: 1fr 1fr; /* 1/2, 1/2 via fr units */
+  gap: 24px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: var(--glass);
+  border-radius: 8px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.filter-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: #e6dac2;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover:not(.disabled) {
+  background: var(--accent);
+  color: #081428;
+  border-color: var(--accent);
+}
+
+.filter-btn.active {
+  background: var(--accent);
+  color: #081428;
+  border-color: var(--accent);
+}
+
+.filter-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Role buttons with icons */
+.role-buttons {
+  gap: 4px;
+}
+
+.role-btn {
+  padding: 6px 8px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.role-btn img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.role-btn[data-value="all"] {
+  width: auto;
+  min-width: 50px;
+  padding: 8px 12px;
+}
+
+@media(max-width:968px){
+  .main{flex-direction:column;}
+  .left-col,.right-col{width:100%;}
+  .match-filters{flex-direction:column;gap:12px;}
+}

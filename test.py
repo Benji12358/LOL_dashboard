@@ -20,52 +20,11 @@ from tqdm import tqdm
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-global user_config
-global account_base_url, match_base_url
-
-account_base_url = "https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id" 
-match_base_url = "https://europe.api.riotgames.com/lol/match/v5/matches"
-league_base_url = "https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid"
-
-useful_participant_data = [
-    # participant infos
-    "puuid", "championName", "champExperience", "champLevel", "individualPosition", "teamId", "deaths", "kills", "assists",
-    # pings infos
-    "allInPings", "assistMePings", "basicPings", "commandPings", "dangerPings", "enemyMissingPings", "enemyVisionPings", "getBackPings", "holdPings", "needVisionPings", "onMyWayPings", "pushPings", "retreatPings", "visionClearedPings",
-    # kills infos
-    "doubleKills", "tripleKills", "quadraKills", "pentaKills", "killingSprees", "largestKillingSpree", "largestMultiKill", "firstBloodAssist", "firstBloodKill",
-    # AD/AP/true damage dealt and taken
-    "magicDamageDealt", "magicDamageDealtToChampions", "magicDamageTaken", "physicalDamageDealt", "physicalDamageDealtToChampions", "physicalDamageTaken", "damageSelfMitigated", "trueDamageDealt", "trueDamageDealtToChampions", "trueDamageTaken",
-    # structure infos
-    "damageDealtToBuildings", "damageDealtToTurrets", "firstTowerAssist", "firstTowerKill", "turretKills","turretTakedowns","turretsLost", "nexusKills","nexusLost","nexusTakedowns", "inhibitorKills","inhibitorTakedowns","inhibitorsLost",
-    # objectives infos
-    "damageDealtToObjectives", "baronKills", "dragonKills", "objectivesStolen", "objectivesStolenAssists",
-    # vision infos
-    "detectorWardsPlaced", "wardsPlaced", "wardsKilled", "visionScore",
-    # summoner's spell info
-    "spell1Casts", "spell2Casts", "spell3Casts", "spell4Casts", "summoner1Casts", "summoner1Id", "summoner2Casts", "summoner2Id",
-    # summoner info
-    "totalTimeSpentDead", "longestTimeSpentLiving",
-    # gold info
-    "goldEarned", "totalMinionsKilled", "totalAllyJungleMinionsKilled", "totalEnemyJungleMinionsKilled",
-    # cc info
-    "timeCCingOthers", "totalTimeCCDealt",
-    # items info
-    "item0", "item1", "item2", "item3", "item4", "item5"
-    ]
-
-useful_team_data = [
-    # game info
-    "gameId", "gameMode", "gameType", "gameVersion", "endOfGameResult"
-    ]
-
-useful_objectives_data = [
-    # objectives info
-    "atakhan", "baron", "champion", "dragon", "horde", "inhibitor", "riftHerald", "tower"
-    ]
+global user_config, useful_data
 
 config = Config()
-user_config = config.read_config()
+user_config = config.read_user_config()
+useful_data = config.read_useful_config()
 
 def test_api_connection(account_url):
     test_url = account_url
@@ -115,7 +74,7 @@ def get_puuid(account_url):
 def get_all_matches(puuid):
     all_games = []
 
-    matches_url = match_base_url + "/by-puuid/" + puuid + "/ids"
+    matches_url = useful_data["match_base_url"] + "/by-puuid/" + puuid + "/ids"
 
     proceed = True
     start = 0
@@ -155,7 +114,7 @@ def estimate_time_to_fill_db(games):
 
 
 def get_match(match_id):
-    match_url = match_base_url + "/" + match_id
+    match_url = useful_data["match_base_url"] + "/" + match_id
 
     params = {'api_key': user_config['api_key']}
     r = make_request(match_url, params)
@@ -165,9 +124,9 @@ def get_match(match_id):
 
 def cure_team_data(gameData, n):
 
-    cured_team = {x: gameData[x] for x in useful_team_data if x in gameData}
+    cured_team = {x: gameData[x] for x in useful_data["team_data"] if x in gameData}
 
-    tmp = {x: gameData["teams"][n]["objectives"][x]["kills"] for x in useful_objectives_data if x in gameData["teams"][n]["objectives"]}
+    tmp = {x: gameData["teams"][n]["objectives"][x]["kills"] for x in useful_data["objectives_data"] if x in gameData["teams"][n]["objectives"]}
 
     cured_team.update(tmp)
 
@@ -188,7 +147,7 @@ def get_summoner_rank(db, puuid):
     # if not, we fetch the rank from the Riot API
     if summoner == []:
         
-        summoner_url = league_base_url + "/" + puuid
+        summoner_url = useful_data["league_base_url"] + "/" + puuid
         params = {'api_key': user_config['api_key']}
         r = make_request(summoner_url, params)
         
@@ -214,7 +173,7 @@ def cure_participants_data(participants, additional_info, summoner, db):
 
     for i in range(len(participants)):
         participant = participants[i]
-        cured_participant = {x: participant[x] for x in useful_participant_data if x in participant}
+        cured_participant = {x: participant[x] for x in useful_data["participant_data"] if x in participant}
 
         if cured_participant["puuid"] == summoner["puuid"]:
             participant_rank = summoner["current_rank"]
@@ -254,14 +213,14 @@ def main():
     # Initialiser le gestionnaire API
     # api = APIHandler('https://api.example.com')
     db = DatabaseManager()
-    db.delete_tables()
+    # db.delete_tables()
     db.create_tables()
     
     # Task 1: Fetch et save summoner
     logger.info("=== Step 1: Fetch and Save summoner ===")
     summoner_existence = test_summoner_existence(db)
     if not summoner_existence:
-        account_url = account_base_url + "/" + user_config['gameName'] + "/" + user_config['tagLine'] + "?api_key=" + user_config['api_key']
+        account_url = useful_data["account_base_url"] + "/" + user_config['gameName'] + "/" + user_config['tagLine'] + "?api_key=" + user_config['api_key']
         test_api_connection(account_url)
         account_puiid = get_puuid(account_url)
         account_rank = get_summoner_rank(db, account_puiid)

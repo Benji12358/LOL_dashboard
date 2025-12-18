@@ -5,7 +5,7 @@ class Config:
     def __init__(self):
         self.config = ConfigParser()
 
-    def write_config(self, gameName, tagLine, api_key):
+    def write_user_config(self, gameName, tagLine, api_key):
         self.config['USERINFO'] = {
             'gameName': gameName,
             'tagLine': tagLine,
@@ -14,7 +14,7 @@ class Config:
         with open('config/config.ini', 'w') as configfile:
             self.config.write(configfile)
 
-    def read_config(self):
+    def read_user_config(self):
         self.config.read('config/config.ini')
         return {
             'gameName': self.config.get('USERINFO', 'gameName'),
@@ -22,7 +22,18 @@ class Config:
             'api_key': self.config.get('USERINFO', 'api_key')
         }
     
-    def update_config(self, gameName=None, tagLine=None, api_key=None):
+    def read_useful_config(self):
+        self.config.read('config/lol.ini')
+        return {
+            'account_base_url': self.config.get('RIOT_API_URLS', 'account_base_url'),
+            'match_base_url': self.config.get('RIOT_API_URLS', 'match_base_url'),
+            'league_base_url': self.config.get('RIOT_API_URLS', 'league_base_url'),
+            'participant_data': self.config.get('USEFUL_DATA', 'participant_data').replace("\n","").split(','),
+            'team_data': self.config.get('USEFUL_DATA', 'team_data').replace("\n","").split(','),
+            'objectives_data': self.config.get('USEFUL_DATA', 'objectives_data').replace("\n","").split(',')
+        }
+    
+    def update_user_config(self, gameName=None, tagLine=None, api_key=None):
         self.config.read('config/config.ini')
         if gameName:
             self.config.set('USERINFO', 'gameName', gameName)

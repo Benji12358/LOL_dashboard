@@ -180,24 +180,35 @@ def cure_team_data(gameData, n):
     return cured_team
 
 
-def get_summoner_rank(puuid):
+def get_summoner_rank(db, puuid):
 
-    summoner_url = league_base_url + "/" + puuid
+    # we look if the summoner is already in the database
+    summoner = db.fetch_data('game_participants', columns=['current_rank'], filters={'puuid': puuid})
 
-    params = {'api_key': user_config['api_key']}
-    r = make_request(summoner_url, params)
-    
-    if len(r) > 0:
-        for i in range(len(r)):
-            queue = r[i]
-            if queue["queueType"] == "RANKED_SOLO_5x5":
-                return queue["tier"] + "_" + queue["rank"]
+    # if not, we fetch the rank from the Riot API
+    if summoner == []:
+        
+        summoner_url = league_base_url + "/" + puuid
+        params = {'api_key': user_config['api_key']}
+        r = make_request(summoner_url, params)
+        
+        if len(r) > 0:
+            for i in range(len(r)):
+                queue = r[i]
+                if queue["queueType"] == "RANKED_SOLO_5x5":
+                    return queue["tier"] + "_" + queue["rank"]
+        else:
+            # default rank
+            return "Unranked"
+
+    # if yes, we return the rank stored in the database
     else:
-        # default rank
-        return "Unranked"
+        return summoner[0]["current_rank"]
+
+    
 
 
-def cure_participants_data(participants, game_id, game_timestamp, gameDuration, gameMode, remakeStatus, summoner):
+def cure_participants_data(participants, additional_info, summoner, db):
 
     cured_participants = []
 
@@ -208,14 +219,14 @@ def cure_participants_data(participants, game_id, game_timestamp, gameDuration, 
         if cured_participant["puuid"] == summoner["puuid"]:
             participant_rank = summoner["current_rank"]
         else:
-            participant_rank = get_summoner_rank(participant["puuid"])
+            participant_rank = get_summoner_rank(db, participant["puuid"])
         
         cured_participant["current_rank"] = participant_rank
-        cured_participant["gameId"] = game_id
-        cured_participant["gameEndTimestamp"] = game_timestamp
-        cured_participant["gameDuration"] = gameDuration
+        cured_participant["gameId"] = additional_info["game_id"]
+        cured_participant["gameEndTimestamp"] = additional_info["game_timestamp"]
+        cured_participant["gameDuration"] = additional_info["game_duration"]
 
-        match gameMode:
+        match additional_info["game_mode"]:
             case 400:
                 cured_participant["gameMode"] = "normal"
             case 420:
@@ -229,7 +240,7 @@ def cure_participants_data(participants, game_id, game_timestamp, gameDuration, 
             case _:
                 cured_participant["gameMode"] = "other"
 
-        if remakeStatus or cured_participant["gameMode"] == "ARAM":
+        if additional_info["remake_status"] or cured_participant["gameMode"] == "ARAM":
             cured_participant["gameStatusProcess"] = "Avoid"
         else:
             cured_participant["gameStatusProcess"] = "Normal"
@@ -253,7 +264,7 @@ def main():
         account_url = account_base_url + "/" + user_config['gameName'] + "/" + user_config['tagLine'] + "?api_key=" + user_config['api_key']
         test_api_connection(account_url)
         account_puiid = get_puuid(account_url)
-        account_rank = get_summoner_rank(account_puiid)
+        account_rank = get_summoner_rank(db, account_puiid)
         
         summoner = {
             "summoner_name": user_config['gameName'],
@@ -280,14 +291,19 @@ def main():
         estimate_time_to_fill_db(games_id_not_stored_yet)
         
         for i in tqdm(range(len(games_id_not_stored_yet)), desc="Processing games", unit="game"):
+
             game_id = games_id_not_stored_yet[i]
             game_json = get_match(game_id)
-            game_timestamp = game_json["info"]["gameEndTimestamp"]
-            gameDuration = game_json["info"]["gameDuration"]
-            gameMode = game_json["info"]["queueId"]
-            remakeStatus = game_json["info"]["participants"][0]["gameEndedInEarlySurrender"]
 
-            participants = cure_participants_data(game_json["info"]["participants"], game_id, game_timestamp, gameDuration, gameMode, remakeStatus, summoner)
+            additional_info = {
+                "game_id": game_id,
+                "game_timestamp": game_json["info"]["gameEndTimestamp"],
+                "game_duration": game_json["info"]["gameDuration"],
+                "game_mode": game_json["info"]["queueId"],
+                "remake_status": game_json["info"]["participants"][0]["gameEndedInEarlySurrender"]
+            }
+
+            participants = cure_participants_data(game_json["info"]["participants"], additional_info, summoner, db)
             db.insert_participants(participants)
 
             team_blue = cure_team_data(game_json["info"], 0)

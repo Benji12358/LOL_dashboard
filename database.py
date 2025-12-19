@@ -1,6 +1,7 @@
 import os
 import logging
 from datetime import datetime
+import api_handler
 from sqlalchemy import (create_engine, Column, Integer, String, DateTime, inspect)
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
@@ -210,6 +211,77 @@ class DatabaseManager:
     """ Fetch the rank of the summoner in the db. Return [] if he does not exist """
     def fetch_summoner_rank(self, puuid):
         return self.fetch_data('game_participants', columns=['current_rank'], filters={'puuid': puuid})
+    
+    """ Set the summoner's rank, either from getting from the bd or the API """
+    def set_summoner_rank(self, user_config, url_config, api, puuid):
+        # we look if the summoner is already in the database
+        summoner = self.fetch_summoner_rank(puuid)
+
+        # if not, we fetch the rank from the Riot API
+        if summoner == []:
+            return api.fetch_summoner_rank(self, url_config, user_config, puuid)
+
+        # if yes, we return the rank stored in the database
+        else:
+            return summoner[0]["current_rank"]
+        
+    """ Cure the team data from the API before inserting it in db """
+    def cure_team_data(self, gameData, useful_data, n):
+
+        cured_team = {x: gameData[x] for x in useful_data["team_data"] if x in gameData}
+        tmp = {x: gameData["teams"][n]["objectives"][x]["kills"] for x in useful_data["objectives_data"] if x in gameData["teams"][n]["objectives"]}
+        cured_team.update(tmp)
+
+        cured_team["teamId"] = gameData["teams"][n]["teamId"]
+        cured_team["win"] = gameData["teams"][n]["win"]
+        cured_team["gameId"] = "EUW1_" + str(cured_team["gameId"])
+
+        if gameData["participants"][0]["gameEndedInEarlySurrender"]:
+            cured_team["win"] = "Remake"
+
+        return cured_team
+    
+    """ Cure the participant data from the API before inserting it in db """
+    def cure_participants_data(self, participants, additional_info, summoner, user_config, url_config, useful_data, api):
+
+        cured_participants = []
+
+        for i in range(len(participants)):
+            participant = participants[i]
+            cured_participant = {x: participant[x] for x in useful_data["participant_data"] if x in participant}
+
+            if cured_participant["puuid"] == summoner["puuid"]:
+                participant_rank = summoner["current_rank"]
+            else:
+                participant_rank = self.set_summoner_rank(user_config, url_config, api, participant["puuid"])
+            
+            cured_participant["current_rank"] = participant_rank
+            cured_participant["gameId"] = additional_info["game_id"]
+            cured_participant["gameEndTimestamp"] = additional_info["game_timestamp"]
+            cured_participant["gameDuration"] = additional_info["game_duration"]
+
+            match additional_info["game_mode"]:
+                case 400:
+                    cured_participant["gameMode"] = "normal"
+                case 420:
+                    cured_participant["gameMode"] = "solo"
+                case 440:
+                    cured_participant["gameMode"] = "flex"
+                case 450:
+                    cured_participant["gameMode"] = "ARAM"
+                case 480:
+                    cured_participant["gameMode"] = "swiftplay"
+                case _:
+                    cured_participant["gameMode"] = "other"
+
+            if additional_info["remake_status"] or cured_participant["gameMode"] == "ARAM":
+                cured_participant["gameStatusProcess"] = "Avoid"
+            else:
+                cured_participant["gameStatusProcess"] = "Normal"
+
+            cured_participants.append(cured_participant)
+
+        return cured_participants
 
 # --- Models ---
 Base = declarative_base()

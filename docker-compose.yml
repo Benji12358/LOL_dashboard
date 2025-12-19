@@ -27,13 +27,12 @@ services:
     container_name: lol_api_fetcher
     environment:
       DATABASE_URL: postgresql://lol_user:lol_password@db:5432/lol_database
-      API_URL: https://api.example.com
     volumes:
       - .:/app
     depends_on:
       db:
         condition: service_healthy
-    command: python test.py
+    command: python update.py
 
   # Web Interface (Flask/Node.js)
   web:

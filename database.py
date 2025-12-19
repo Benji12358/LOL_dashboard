@@ -188,6 +188,28 @@ class DatabaseManager:
 
     def _row_to_dict(self, row):
         return {c.name: getattr(row, c.name) for c in row.__table__.columns}
+    
+    """ Fetch the main summoner from the db """
+    def fetch_main_summoner(self):
+        summoner = self.fetch_data('summoner')
+        if summoner == []:
+            logger.info("No summoner found in database")
+            return False
+        else:
+            logger.info("Summoner found in database")
+            return True
+    
+    """ Clean an array of games Id to remove those already stored in the db """
+    def remove_already_stored_games(self, all_games_id, puuid):
+        gameStored = self.fetch_data('game_participants', columns=['gameId'], filters={'puuid': puuid})
+        gameStored = [game['gameId'] for game in gameStored]
+        gameNotStoredYet = [x for x in all_games_id if x not in gameStored]
+        
+        return gameNotStoredYet
+    
+    """ Fetch the rank of the summoner in the db. Return [] if he does not exist """
+    def fetch_summoner_rank(self, puuid):
+        return self.fetch_data('game_participants', columns=['current_rank'], filters={'puuid': puuid})
 
 # --- Models ---
 Base = declarative_base()

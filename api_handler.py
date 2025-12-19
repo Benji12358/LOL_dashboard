@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class APIHandler:
     """Gère la récupération des données de l'API"""
     
-    def __init__(self, api_url):
+    def __init__(self):
         self.db = DatabaseManager()
 
     """ Try one request to the RIOT API to verify if the key has expired """

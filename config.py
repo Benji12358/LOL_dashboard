@@ -22,12 +22,17 @@ class Config:
             'api_key': self.config.get('USERINFO', 'api_key')
         }
     
-    def read_useful_config(self):
+    def read_url_config(self):
         self.config.read('config/lol.ini')
         return {
             'account_base_url': self.config.get('RIOT_API_URLS', 'account_base_url'),
             'match_base_url': self.config.get('RIOT_API_URLS', 'match_base_url'),
-            'league_base_url': self.config.get('RIOT_API_URLS', 'league_base_url'),
+            'league_base_url': self.config.get('RIOT_API_URLS', 'league_base_url')
+        }
+    
+    def read_useful_config(self):
+        self.config.read('config/lol.ini')
+        return {
             'participant_data': self.config.get('USEFUL_DATA', 'participant_data').replace("\n","").split(','),
             'team_data': self.config.get('USEFUL_DATA', 'team_data').replace("\n","").split(','),
             'objectives_data': self.config.get('USEFUL_DATA', 'objectives_data').replace("\n","").split(',')

@@ -1,7 +1,6 @@
 import os
 import logging
 from datetime import datetime
-import api_handler
 from sqlalchemy import (create_engine, Column, Integer, String, DateTime, inspect)
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
@@ -219,7 +218,7 @@ class DatabaseManager:
 
         # if not, we fetch the rank from the Riot API
         if summoner == []:
-            return api.fetch_summoner_rank(self, url_config, user_config, puuid)
+            return api.fetch_summoner_rank(url_config, user_config, puuid)
 
         # if yes, we return the rank stored in the database
         else:

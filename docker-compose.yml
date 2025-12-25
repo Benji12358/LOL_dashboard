@@ -32,7 +32,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: python update.py
+    # command: python update.py
 
   # Web Interface (Flask/Node.js)
   web:

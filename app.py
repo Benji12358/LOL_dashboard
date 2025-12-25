@@ -2,9 +2,8 @@ from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from database import DatabaseManager
 import logging
-from datetime import datetime
-import subprocess
 import sys
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -229,14 +228,10 @@ def api_matches():
         # Filter by game mode
         if gameMode != 'all':
             gameModeFull = {
-                # 'normal': 'Normal Draft',
-                # 'solo': 'Ranked Solo/5v5',
-                # 'flex': 'Ranked Flex SR',
-                # 'swiftplay': 'Swift Play'
-                'normal': 'normal',
-                'solo': 'solo',
-                'flex': 'flex',
-                'swiftplay': 'swiftplay'
+                'normal': 'Normal Draft',
+                'solo': 'Ranked Solo',
+                'flex': 'Ranked Flex',
+                'swiftplay': 'Swiftplay'
             }.get(gameMode, '')
             if gameModeFull:
                 parts = [p for p in parts if p.get('gameMode') == gameModeFull]

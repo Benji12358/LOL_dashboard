@@ -261,15 +261,15 @@ class DatabaseManager:
 
             match additional_info["game_mode"]:
                 case 400:
-                    cured_participant["gameMode"] = "normal"
+                    cured_participant["gameMode"] = "Normal Draft"
                 case 420:
-                    cured_participant["gameMode"] = "solo"
+                    cured_participant["gameMode"] = "Ranked Solo"
                 case 440:
-                    cured_participant["gameMode"] = "flex"
+                    cured_participant["gameMode"] = "Ranked Flex"
                 case 450:
                     cured_participant["gameMode"] = "ARAM"
                 case 480:
-                    cured_participant["gameMode"] = "swiftplay"
+                    cured_participant["gameMode"] = "Swift Play"
                 case _:
                     cured_participant["gameMode"] = "other"
 

@@ -8,12 +8,23 @@
 </head>
 <body>
   <header class="header">
-    <div class="container header-content">
-      <div class="summoner-info">
-        <h1 id="summoner-name">Loading...</h1>
-        <div id="summoner-tag" class="tag">—</div>
+    <div class="container header-content" >
+      <div class="summoner-header">
+        <div class="summoner-info">
+          <h1 id="summoner-name">Loading...</h1>
+          <div id="summoner-tag" class="tag">—</div>
+        </div>
+
+        <div class="db-actions">
+          <button id="db-update-btn" class="db-action-btn update-btn" title="Update Database">
+            <span>🔄</span> Update
+          </button>
+          <button id="db-delete-btn" class="db-action-btn delete-btn" title="Clear Database">
+            <span>🗑️</span> Clear
+          </button>
+        </div>
       </div>
-      
+
       <div class="summary-metrics">
         <div class="metric">
           <div class="metric-label">Winrate</div>
@@ -33,12 +44,18 @@
         </div>
       </div>
 
-      <div class="header-actions">
-        <button id="db-update-btn" class="db-action-btn update-btn" title="Update Database">
-          <span>🔄</span> Update
+      <div class="external-links" class="summoner-info">
+
+        <button id="mobalytics-link" class="db-action-btn" href="#" target="_blank">
+          <img src="static/assets/external/mobalytics.png" alt="Mobalytics" style="width:22px;height:22px;vertical-align:middle;margin-right:4px;">Mobalytics
         </button>
-        <button id="db-delete-btn" class="db-action-btn delete-btn" title="Clear Database">
-          <span>🗑️</span> Clear
+        <br>
+        <button id="dpm-link" class="db-action-btn" href="#" target="_blank">
+          <img src="static/assets/external/dpm.png" alt="dpm.lol" style="width:22px;height:22px;vertical-align:middle;margin-right:4px;">dpm.lol
+        </button>
+        <br>
+        <button id="lographs-link" class="db-action-btn" href="#" target="_blank">
+          <img src="static/assets/external/lographs.png" alt="League of Graphs" style="width:22px;height:22px;vertical-align:middle;margin-right:4px;">League of Graphs
         </button>
       </div>
     </div>
@@ -53,6 +70,13 @@
 
       <div class="card">
         <h2>Opponents Elo Distribution</h2>
+        <div class="filter-buttons" style="margin-bottom:8px;">
+          <button class="filter-btn active" data-filter="gameMode" data-value="all">All</button>
+          <button class="filter-btn" data-filter="gameMode" data-value="normal">Normal</button>
+          <button class="filter-btn" data-filter="gameMode" data-value="solo">Solo</button>
+          <button class="filter-btn" data-filter="gameMode" data-value="flex">Flex</button>
+          <button class="filter-btn" data-filter="gameMode" data-value="swiftplay">Swift</button>
+        </div>
         <canvas id="opponent-elo-chart" height="250"></canvas>
       </div>
 

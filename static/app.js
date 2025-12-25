@@ -101,10 +101,7 @@ function roleToIcon(role) {
     'TOP': 'Top_icon',
     'JUNGLE': 'Jungle_icon',
     'MIDDLE': 'Middle_icon',
-    'MID': 'Middle_icon',
     'BOTTOM': 'Adc_icon',
-    'ADC': 'Adc_icon',
-    'SUPPORT': 'Support_icon',
     'UTILITY': 'Support_icon'
   };
   return roleMap[role] || null;
@@ -149,7 +146,8 @@ async function loadAvailableRoles() {
 }
 
 function updateRoleButtons() {
-  const roleButtons = document.querySelectorAll('.role-btn[data-value!="all"]');
+  const roleButtons = Array.from(document.querySelectorAll('.role-btn'))
+    .filter(b => b.dataset.value && b.dataset.value.toLowerCase() !== 'all');
   roleButtons.forEach(btn => {
     const role = btn.dataset.value;
     if (availableRoles.includes(role)) {
@@ -194,7 +192,19 @@ async function refresh() {
     drawTopChampions(champions.slice(0, 3));
 
     // Opponent Elo Distribution
-    drawOpponentEloDistribution(opponentData.opponents || []);
+    window._lastOpponentData = opponentData.opponents || [];
+    drawOpponentEloDistribution(window._lastOpponentData);
+
+    // External links (Mobalytics, dpm.lol, League of Graphs)
+    try {
+      const sname = encodeURIComponent((s.summoner_name || '').replace(/ /g, ''));
+      const stag = encodeURIComponent(s.summoner_tag || '');
+      document.getElementById('mobalytics-link').href = `https://mobalytics.gg/lol/profile/euw/${sname}-${stag}/overview`;
+      document.getElementById('dpm-link').href = `https://dpm.lol/${sname}-${stag}`;
+      document.getElementById('lographs-link').href = `https://www.leagueofgraphs.com/summoner/euw/${sname}-${stag}`;
+    } catch (err) {
+      console.warn('Error setting external links', err);
+    }
 
     // Load first batch of matches
     matchesOffset = 0;
@@ -399,41 +409,43 @@ function drawTopChampions(champions) {
 
 function drawOpponentEloDistribution(opponents) {
   const ranks = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER'];
-  const divisions = ['IV', 'III', 'II', 'I'];
+  const baseDivisions = ['IV', 'III', 'II', 'I'];
   
   // Build data structure: rank -> division -> count
   const rankDivisionMap = {};
   ranks.forEach(rank => {
     rankDivisionMap[rank] = {};
+    // MASTER only has division I
+    const divisions = rank === 'MASTER' ? ['I'] : baseDivisions;
     divisions.forEach(div => {
       rankDivisionMap[rank][div] = 0;
     });
   });
 
+  // Filter opponents by current game mode if set
+  const filteredOpponents = (currentGameModeFilter && currentGameModeFilter !== 'all')
+    ? opponents.filter(o => (o.gameMode || '').toLowerCase() === currentGameModeFilter.toLowerCase())
+    : opponents;
+
   // Count opponents by rank/division
-  opponents.forEach(opp => {
+  filteredOpponents.forEach(opp => {
     const rankStr = opp.rank || opp.current_rank || '';
     const parts = rankStr.trim().split('_');
     if (parts.length === 2) {
       const rank = parts[0].toUpperCase();
       const division = parts[1].toUpperCase();
-      if (ranks.includes(rank) && divisions.includes(division)) {
+      if (rankDivisionMap[rank] && rankDivisionMap[rank][division] !== undefined) {
         rankDivisionMap[rank][division]++;
       }
     }
   });
 
-  // Build chart data: labels and datasets for each division
   const labels = ranks;
-  const datasets = divisions.map((div, divIdx) => {
-    const data = ranks.map(rank => rankDivisionMap[rank][div]);
-    
-    // // Color: white if matches summoner rank/division, else yellow
-    // const backgroundColor = (summonerRank === rank && summonerDivision === div) 
-    //   ? '#ffffff' 
-    //   : '#d7b04a';
-    
+  const divisionsOrder = ['IV', 'III', 'II', 'I'];
+  const datasets = divisionsOrder.map(div => {
+    const data = labels.map(rank => rankDivisionMap[rank][div] || 0);
     return {
+      _division: div,
       label: `Division ${div}`,
       data: data,
       backgroundColor: '#d7b04a',
@@ -442,7 +454,7 @@ function drawOpponentEloDistribution(opponents) {
       barThickness: 8,
       maxBarThickness: 12
     };
-  });
+  }).filter(ds => ds.data.some(v => v > 0));
 
   const ctx = document.getElementById('opponent-elo-chart');
   if (!ctx) {
@@ -465,6 +477,12 @@ function drawOpponentEloDistribution(opponents) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          bottom: 25,  // espace pour icons et text
+          top: 5
+        }
+      },
       scales: {
         y: {
           display: false,
@@ -472,10 +490,7 @@ function drawOpponentEloDistribution(opponents) {
           stacked: false
         },
         x: {
-          ticks: { 
-            color: '#e6dac2',
-            font: { size: 12 }
-          },
+          ticks: { display: false },
           grid: { display: true }
         }
       },
@@ -486,14 +501,43 @@ function drawOpponentEloDistribution(opponents) {
           bodyFont: { size: 12 },
           callbacks: {
             label: function(context) {
-              const div = divisions[context.datasetIndex];
+              const div = context.dataset._division || context.dataset.label;
               const count = context.parsed.y;
               return `${div}: ${count}`;
             }
           }
         }
       }
-    }
+    },
+    plugins: [{
+      id: 'drawRankIcons',
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data) return;
+
+        if (!window._rankIconCache) window._rankIconCache = {};
+
+        labels.forEach((rank, idx) => {
+          const imgPath = `static/assets/rank/rank_${rank.toLowerCase()}.png`;
+          if (!window._rankIconCache[imgPath]) {
+            const img = new Image();
+            img.src = imgPath;
+            window._rankIconCache[imgPath] = img;
+          }
+          const img = window._rankIconCache[imgPath];
+          const bar = meta.data[idx];
+          if (!bar) return;
+          const barX = bar.x;
+          const baseY = chartArea.bottom + 6;
+          const iconSize = 28;
+          if (img && img.complete) {
+            ctx.drawImage(img, barX - iconSize/2, baseY, iconSize, iconSize);
+          }
+        });
+      }
+    }]
   });
 }
 
@@ -644,6 +688,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Reload matches
       loadMoreMatches(true);
+
+      // If opponent data exists, redraw opponent elo chart with the new gameMode filter
+      if (filterType === 'gameMode' && window._lastOpponentData) {
+        drawOpponentEloDistribution(window._lastOpponentData);
+      }
     });
   });
 
@@ -673,6 +722,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Load more matches button
+  const loadMoreBtn = document.getElementById('load-more-btn');
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', async () => {
+      await loadMoreMatches(false);
+    });
+  }
 
   loadDefault();
 });

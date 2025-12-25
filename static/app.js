@@ -408,53 +408,82 @@ function drawTopChampions(champions) {
 }
 
 function drawOpponentEloDistribution(opponents) {
-  const ranks = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER'];
-  const baseDivisions = ['IV', 'III', 'II', 'I'];
-  
-  // Build data structure: rank -> division -> count
-  const rankDivisionMap = {};
-  ranks.forEach(rank => {
-    rankDivisionMap[rank] = {};
-    // MASTER only has division I
-    const divisions = rank === 'MASTER' ? ['I'] : baseDivisions;
-    divisions.forEach(div => {
-      rankDivisionMap[rank][div] = 0;
-    });
-  });
+  const ranks = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND'];
+  const divisions = ['IV', 'III', 'II', 'I'];
 
-  // Filter opponents by current game mode if set
+  // ─────────────────────────────────────────────────────────────
+  // 1. Construction des labels AVEC espaces entre les rangs
+  // ─────────────────────────────────────────────────────────────
+  const labels = [];
+  const GAP_SIZE = 1; // 1 = environ une demi-barre d'espace (ajuste selon tes goûts : 1 ou 2)
+
+  ranks.forEach((rank, rankIndex) => {
+    divisions.forEach(div => {
+      labels.push(`${rank} ${div}`);
+    });
+    // Ajouter des placeholders vides entre les rangs (sauf après le dernier)
+    if (rankIndex < ranks.length - 1) {
+      for (let i = 0; i < GAP_SIZE; i++) {
+        labels.push(''); // label vide = espace
+      }
+    }
+  });
+  // On ajoute MASTER à la fin, avec un espace avant si on veut
+  labels.push(''); // espace optionnel avant MASTER
+  labels.push('MASTER');
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. Comptage des occurrences (seulement sur les labels réels)
+  // ─────────────────────────────────────────────────────────────
+  const countMap = {};
+  labels.forEach(label => countMap[label] = 0); // initialise tout à 0
+
   const filteredOpponents = (currentGameModeFilter && currentGameModeFilter !== 'all')
     ? opponents.filter(o => (o.gameMode || '').toLowerCase() === currentGameModeFilter.toLowerCase())
     : opponents;
 
-  // Count opponents by rank/division
   filteredOpponents.forEach(opp => {
     const rankStr = opp.rank || opp.current_rank || '';
     const parts = rankStr.trim().split('_');
     if (parts.length === 2) {
-      const rank = parts[0].toUpperCase();
-      const division = parts[1].toUpperCase();
-      if (rankDivisionMap[rank] && rankDivisionMap[rank][division] !== undefined) {
-        rankDivisionMap[rank][division]++;
+      let rank = parts[0].toUpperCase();
+      let division = parts[1].toUpperCase();
+
+      if (rank === 'MASTER') {
+        countMap['MASTER']++;
+      } else if (ranks.includes(rank) && divisions.includes(division)) {
+        const key = `${rank} ${division}`;
+        countMap[key]++;
       }
     }
   });
 
-  const labels = ranks;
-  const divisionsOrder = ['IV', 'III', 'II', 'I'];
-  const datasets = divisionsOrder.map(div => {
-    const data = labels.map(rank => rankDivisionMap[rank][div] || 0);
-    return {
-      _division: div,
-      label: `Division ${div}`,
-      data: data,
-      backgroundColor: '#d7b04a',
-      borderColor: '#b8951f',
-      borderWidth: 1,
-      barThickness: 8,
-      maxBarThickness: 12
-    };
-  }).filter(ds => ds.data.some(v => v > 0));
+  // ─────────────────────────────────────────────────────────────
+  // 3. Préparation des données (null pour les gaps)
+  // ─────────────────────────────────────────────────────────────
+  const data = labels.map(label => {
+    if (label === '') return null; // ou 0 si tu préfères une barre invisible
+    return countMap[label];
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 4. Filtrage optionnel des barres à zéro (mais on garde les gaps)
+  // ─────────────────────────────────────────────────────────────
+  // On NE filtre plus les labels/data, car on veut conserver les espaces
+  // (sinon les gaps disparaissent)
+
+  const datasets = [{
+    label: 'Nombre d\'adversaires',
+    data: data,
+    backgroundColor: '#d7b04a',
+    borderColor: '#b8951f',
+    borderWidth: 1,
+    barThickness: 8,
+    maxBarThickness: 12,
+    // Optionnel : barres un peu plus espacées naturellement
+    categoryPercentage: 0.9,
+    barPercentage: 0.85
+  }];
 
   const ctx = document.getElementById('opponent-elo-chart');
   if (!ctx) {
@@ -463,7 +492,7 @@ function drawOpponentEloDistribution(opponents) {
   }
 
   const canvasCtx = ctx.getContext('2d');
-  
+
   if (window.opponentEloChart) {
     window.opponentEloChart.destroy();
   }
@@ -479,19 +508,24 @@ function drawOpponentEloDistribution(opponents) {
       maintainAspectRatio: false,
       layout: {
         padding: {
-          bottom: 25,  // espace pour icons et text
-          top: 5
+          bottom: 30,  // espace pour les icônes
+          top: 5,
+          left: 5,
+          right: 20
         }
       },
       scales: {
         y: {
           display: false,
-          beginAtZero: true,
-          stacked: false
+          beginAtZero: true
         },
         x: {
-          ticks: { display: false },
-          grid: { display: true }
+          ticks: {
+            display: false  // on garde les labels cachés
+          },
+          grid: {
+            display: false
+          }
         }
       },
       plugins: {
@@ -501,9 +535,11 @@ function drawOpponentEloDistribution(opponents) {
           bodyFont: { size: 12 },
           callbacks: {
             label: function(context) {
-              const div = context.dataset._division || context.dataset.label;
-              const count = context.parsed.y;
-              return `${div}: ${count}`;
+              return `${context.parsed.y} opponents(s)`;
+            },
+            title: function(context) {
+              const label = context[0].label;
+              return label ? label : ''; // évite d'afficher "" dans le tooltip
             }
           }
         }
@@ -515,11 +551,26 @@ function drawOpponentEloDistribution(opponents) {
         const ctx = chart.ctx;
         const chartArea = chart.chartArea;
         const meta = chart.getDatasetMeta(0);
-        if (!meta || !meta.data) return;
+        if (!meta || !meta.data.length) return;
 
         if (!window._rankIconCache) window._rankIconCache = {};
 
-        labels.forEach((rank, idx) => {
+        // ─────────────────────────────────────────────────────────────
+        // Icônes pour les rangs normaux (centrées sur leurs 4 divisions)
+        // ─────────────────────────────────────────────────────────────
+        ranks.forEach(rank => {
+          const divisionIndices = divisions.map(div => {
+            const fullLabel = `${rank} ${div}`;
+            return labels.indexOf(fullLabel);
+          }).filter(idx => idx !== -1);
+
+          if (divisionIndices.length === 0) return;
+
+          const xPositions = divisionIndices.map(i => meta.data[i]?.x).filter(x => x !== undefined);
+          if (xPositions.length === 0) return;
+
+          const centerX = xPositions.reduce((a, b) => a + b, 0) / xPositions.length;
+
           const imgPath = `static/assets/rank/rank_${rank.toLowerCase()}.png`;
           if (!window._rankIconCache[imgPath]) {
             const img = new Image();
@@ -527,15 +578,43 @@ function drawOpponentEloDistribution(opponents) {
             window._rankIconCache[imgPath] = img;
           }
           const img = window._rankIconCache[imgPath];
-          const bar = meta.data[idx];
-          if (!bar) return;
-          const barX = bar.x;
-          const baseY = chartArea.bottom + 6;
+
+          const baseY = chartArea.bottom + 10;
           const iconSize = 28;
+
           if (img && img.complete) {
-            ctx.drawImage(img, barX - iconSize/2, baseY, iconSize, iconSize);
+            ctx.drawImage(img, centerX - iconSize / 2, baseY, iconSize, iconSize);
           }
         });
+
+        // ─────────────────────────────────────────────────────────────
+        // Icône MASTER
+        // ─────────────────────────────────────────────────────────────
+        const masterIndex = labels.indexOf('MASTER');
+        if (masterIndex !== -1 && countMap['MASTER'] > 0) {
+          const bar = meta.data[masterIndex];
+          if (!bar) return;
+
+          let masterX = bar.x;
+          const masterOffset = 12; // ajuste si besoin
+
+          masterX += masterOffset;
+
+          const imgPath = 'static/assets/rank/rank_master.png';
+          if (!window._rankIconCache[imgPath]) {
+            const img = new Image();
+            img.src = imgPath;
+            window._rankIconCache[imgPath] = img;
+          }
+          const img = window._rankIconCache[imgPath];
+
+          const baseY = chartArea.bottom + 10;
+          const iconSize = 28;
+
+          if (img && img.complete) {
+            ctx.drawImage(img, masterX - iconSize / 2, baseY, iconSize, iconSize);
+          }
+        }
       }
     }]
   });

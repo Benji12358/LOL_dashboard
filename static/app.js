@@ -814,6 +814,40 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Error: ' + err.message);
       }
     }
+  });// API key buttons
+  document.getElementById('test-api-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/test-api-key');
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+
+  document.getElementById('update-api-btn').addEventListener('click', async () => {
+    const newKey = prompt('Enter new API key:');
+    if (newKey) {
+      try {
+        const res = await fetch('/api/update-api-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: newKey })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message);
+        } else {
+          alert(data.error);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
   });
 
   // Load more matches button

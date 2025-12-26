@@ -15,17 +15,22 @@ class APIHandler:
 
     """ Try one request to the RIOT API to verify if the key has expired """
     def test_api_connection(self, user_config, url_config):
-        account_url = url_config["account_base_url"] + "/" + user_config['gameName'] + "/" + user_config['tagLine'] + "?api_key=" + user_config['api_key']
+        account_url = url_config["account_base_url"] + "/" + user_config['gameName'] + "/" + user_config['tagLine']
         params = {'api_key': user_config['api_key']}
-        r = requests.get(account_url, params)
+        r = requests.get(account_url, params=params)
         if r.status_code == 200:
             logger.info("API connection successful")
+            return True
         else:
-            r = r.json()
-            status = r["status"]["status_code"]
-            message = r["status"]["message"]
-            logger.error(f"API connection failed with status code {status} : {message}")
-            sys.exit(1)
+            try:
+                err = r.json()
+                status = err["status"]["status_code"]
+                message = err["status"]["message"]
+            except:
+                status = r.status_code
+                message = r.text
+            logger.error(f"API connection failed with status code {status}: {message}")
+            return False
 
     """ The RIOT API accept only 100 requests every 2 minutes.
      Thus, we need to make a request every 1.2 seconds.

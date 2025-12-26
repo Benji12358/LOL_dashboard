@@ -4,6 +4,8 @@ from database import DatabaseManager
 import logging
 import sys
 import os
+from config import Config  # Import Config
+from api_handler import APIHandler  # Import APIHandler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,6 +14,7 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
 db = DatabaseManager()
+config = Config()  # Instance of Config
 
 @app.route('/')
 def index():
@@ -569,6 +572,33 @@ def api_opponent_elo_distribution():
         })
     except Exception as e:
         logger.error(f"api_opponent_elo_distribution error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/test-api-key', methods=['GET'])
+def api_test_api_key():
+    try:
+        user_config = config.read_user_config()
+        url_config = config.read_url_config()
+        api_handler = APIHandler()
+        if api_handler.test_api_connection(user_config, url_config):
+            return jsonify({'message': 'API key is valid'})
+        else:
+            return jsonify({'error': 'API key is invalid'}), 400
+    except Exception as e:
+        logger.error(f"api_test_api_key error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/update-api-key', methods=['POST'])
+def api_update_api_key():
+    try:
+        data = request.json
+        new_key = data.get('api_key')
+        if not new_key:
+            return jsonify({'error': 'api_key required'}), 400
+        config.update_user_config(api_key=new_key)
+        return jsonify({'message': 'API key updated successfully'})
+    except Exception as e:
+        logger.error(f"api_update_api_key error: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

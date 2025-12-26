@@ -28,6 +28,11 @@ def matches_page():
     """Render the matches page"""
     return render_template('matches.html')
 
+@app.route('/performance')
+def performance_page():
+    """Render the performance page"""
+    return render_template('performance.html')
+
 @app.route('/api/summoner-by-name')
 def api_summoner_by_name():
     """
@@ -231,7 +236,7 @@ def api_matches():
                 'normal': 'Normal Draft',
                 'solo': 'Ranked Solo',
                 'flex': 'Ranked Flex',
-                'swiftplay': 'Swiftplay'
+                'swiftplay': 'Swift Play'
             }.get(gameMode, '')
             if gameModeFull:
                 parts = [p for p in parts if p.get('gameMode') == gameModeFull]
@@ -242,10 +247,8 @@ def api_matches():
                 'TOP': 'TOP',
                 'JUNGLE': 'JUNGLE',
                 'MIDDLE': 'MIDDLE',
-                'MID': 'MIDDLE',
                 'BOTTOM': 'BOTTOM',
-                'ADC': 'BOTTOM',
-                'SUPPORT': 'UTILITY'
+                'UTILITY': 'UTILITY'
             }
             role_normalized = role_map.get(role, role)
             parts = [p for p in parts if (p.get('individualPosition') or '').upper() == role_normalized]
@@ -519,12 +522,24 @@ def api_opponent_elo_distribution():
     """
     try:
         puuid = request.args.get('puuid', '').strip()
+        gameMode = request.args.get('gameMode', 'all').lower()
         if not puuid:
             return jsonify({'error': 'puuid required'}), 400
 
         # Filter out remakes and ARAM with gameStatusProcess field
         parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
         opponent_ranks = []
+
+        # Filter by game mode
+        if gameMode != 'all':
+            gameModeFull = {
+                'normal': 'Normal Draft',
+                'solo': 'Ranked Solo',
+                'flex': 'Ranked Flex',
+                'swiftplay': 'Swiftplay'
+            }.get(gameMode, '')
+            if gameModeFull:
+                parts = [p for p in parts if p.get('gameMode') == gameModeFull]
 
         # For each game, get opponent at same position
         for p in parts:
@@ -546,7 +561,7 @@ def api_opponent_elo_distribution():
                 opp = opponents[0]
                 rank = opp.get('current_rank')
                 if rank:
-                    opponent_ranks.append({'rank': rank})
+                    opponent_ranks.append({'rank': rank, 'gameMode': p.get('gameMode')})
         
         return jsonify({
             'opponents': opponent_ranks,

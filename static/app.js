@@ -3,8 +3,9 @@ let matchesOffset = 0;
 let matchesLimit = 10;
 let totalMatches = 0;
 let roleChart = null;
-let currentGameModeFilter = 'all';
-let currentRoleFilter = 'all';
+let matchesGameModeFilter = 'all';
+let matchesRoleFilter = 'all';
+let eloGameModeFilter = 'all';
 let availableRoles = [];
 let itemNames = {};
 let sumspellNames = {};
@@ -438,8 +439,19 @@ function drawOpponentEloDistribution(opponents) {
   const countMap = {};
   labels.forEach(label => countMap[label] = 0); // initialise tout à 0
 
-  const filteredOpponents = (currentGameModeFilter && currentGameModeFilter !== 'all')
-    ? opponents.filter(o => (o.gameMode || '').toLowerCase() === currentGameModeFilter.toLowerCase())
+  // Mapping des valeurs des boutons vers les valeurs réelles dans la base de données
+  const gameModeMapping = {
+    'all': null, // pas de filtre
+    'normal': 'Normal Draft',
+    'solo': 'Ranked Solo',
+    'flex': 'Ranked Flex',
+    'swiftplay': 'Swift Play'
+  };
+
+  const targetMode = gameModeMapping[eloGameModeFilter];
+
+  const filteredOpponents = (targetMode)
+    ? opponents.filter(o => (o.gameMode || '') === targetMode)
     : opponents;
 
   filteredOpponents.forEach(opp => {
@@ -591,29 +603,27 @@ function drawOpponentEloDistribution(opponents) {
         // Icône MASTER
         // ─────────────────────────────────────────────────────────────
         const masterIndex = labels.indexOf('MASTER');
-        if (masterIndex !== -1 && countMap['MASTER'] > 0) {
-          const bar = meta.data[masterIndex];
-          if (!bar) return;
+        const bar = meta.data[masterIndex];
+        if (!bar) return;
 
-          let masterX = bar.x;
-          const masterOffset = 12; // ajuste si besoin
+        let masterX = bar.x;
+        const masterOffset = 12; // décale un peu à droite pour éviter chevauchement
 
-          masterX += masterOffset;
+        masterX += masterOffset;
 
-          const imgPath = 'static/assets/rank/rank_master.png';
-          if (!window._rankIconCache[imgPath]) {
-            const img = new Image();
-            img.src = imgPath;
-            window._rankIconCache[imgPath] = img;
-          }
-          const img = window._rankIconCache[imgPath];
+        const imgPath = 'static/assets/rank/rank_master.png';
+        if (!window._rankIconCache[imgPath]) {
+          const img = new Image();
+          img.src = imgPath;
+          window._rankIconCache[imgPath] = img;
+        }
+        const img = window._rankIconCache[imgPath];
 
-          const baseY = chartArea.bottom + 10;
-          const iconSize = 28;
+        const baseY = chartArea.bottom + 10;
+        const iconSize = 28;
 
-          if (img && img.complete) {
-            ctx.drawImage(img, masterX - iconSize / 2, baseY, iconSize, iconSize);
-          }
+        if (img && img.complete) {
+          ctx.drawImage(img, masterX - iconSize / 2, baseY, iconSize, iconSize);
         }
       }
     }]
@@ -628,7 +638,7 @@ async function loadMoreMatches(reset = false) {
 
   try {
     const response = await fetchJSON(
-      `/api/matches?puuid=${currentPuuid}&limit=${matchesLimit}&offset=${matchesOffset}&gameMode=${currentGameModeFilter}&role=${currentRoleFilter}`
+      `/api/matches?puuid=${currentPuuid}&limit=${matchesLimit}&offset=${matchesOffset}&gameMode=${matchesGameModeFilter}&role=${matchesRoleFilter}`
     );
     const matches = response.matches;
     totalMatches = response.total;
@@ -747,29 +757,33 @@ async function loadMoreMatches(reset = false) {
 
 // Setup filter buttons
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.filter-btn').forEach(btn => {
+  // Matches game mode filters
+  document.querySelectorAll('#matches-game-mode-filters .filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-      const filterType = this.dataset.filter;
-      const filterValue = this.dataset.value;
-
-      // Update active state
-      document.querySelectorAll(`.filter-btn[data-filter="${filterType}"]`).forEach(b => {
-        b.classList.remove('active');
-      });
+      document.querySelectorAll('#matches-game-mode-filters .filter-btn').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
-
-      // Update filter variables
-      if (filterType === 'gameMode') {
-        currentGameModeFilter = filterValue;
-      } else if (filterType === 'role') {
-        currentRoleFilter = filterValue;
-      }
-
-      // Reload matches
+      matchesGameModeFilter = this.dataset.value;
       loadMoreMatches(true);
+    });
+  });
 
-      // If opponent data exists, redraw opponent elo chart with the new gameMode filter
-      if (filterType === 'gameMode' && window._lastOpponentData) {
+  // Matches role filters
+  document.querySelectorAll('#matches-role-filters .filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#matches-role-filters .filter-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      matchesRoleFilter = this.dataset.value;
+      loadMoreMatches(true);
+    });
+  });
+
+  // Elo game mode filters
+  document.querySelectorAll('#elo-game-mode-filters .filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#elo-game-mode-filters .filter-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      eloGameModeFilter = this.dataset.value;
+      if (window._lastOpponentData) {
         drawOpponentEloDistribution(window._lastOpponentData);
       }
     });

@@ -383,7 +383,7 @@ def api_available_roles():
         roles = set()
         for p in parts:
             pos = (p.get('individualPosition') or '').upper()
-            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT']:
+            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']:
                 roles.add(pos)
         
         return jsonify({'roles': sorted(list(roles))})

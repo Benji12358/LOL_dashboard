@@ -31,11 +31,6 @@ def matches_page():
     """Render the matches page"""
     return render_template('matches.html')
 
-@app.route('/performance')
-def performance_page():
-    """Render the performance page"""
-    return render_template('performance.html')
-
 @app.route('/api/summoner-by-name')
 def api_summoner_by_name():
     """
@@ -148,7 +143,7 @@ def api_champions():
             entry['kills'] += (p.get('kills') or 0)
             entry['deaths'] += (p.get('deaths') or 0)
             entry['assists'] += (p.get('assists') or 0)
-            entry['cs'] += (p.get('totalMinionsKilled') or 0)
+            entry['cs'] += p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0)
             entry['duration'] += (int(p.get('gameDuration') or 0))
 
             gid = p.get('gameId')
@@ -304,7 +299,7 @@ def api_matches():
                 opponent_deaths = opp.get('deaths') or 0
                 opponent_assists = opp.get('assists') or 0
                 opponent_kda = round((opponent_kills + opponent_assists) / max(1, opponent_deaths), 2)
-                opponent_cs = opp.get('totalMinionsKilled') or 0
+                opponent_cs = opp.get('totalMinionsKilled', 0) + opp.get('neutralMinionsKilled', 0)
                 opponent_gold = opp.get('goldEarned') or 0
                 opponent_items = [opp.get(f'item{i}') or 0 for i in range(6)]
                 opponent_summoner1 = opp.get('summoner1Id') or 0
@@ -331,7 +326,7 @@ def api_matches():
                 'assists': assists,
                 'kda': kda,
                 'goldEarned': p.get('goldEarned'),
-                'totalMinionsKilled': p.get('totalMinionsKilled'),
+                'totalMinionsKilled': p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0),
                 'item0': items[0],
                 'item1': items[1],
                 'item2': items[2],
@@ -599,6 +594,178 @@ def api_update_api_key():
         return jsonify({'message': 'API key updated successfully'})
     except Exception as e:
         logger.error(f"api_update_api_key error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/performance')
+def api_performance():
+    """
+    Get performance stats against opponent ranks.
+    Query params:
+      - puuid (required)
+      - gameMode (optional: all, normal, solo, flex, swiftplay)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        gameMode = request.args.get('gameMode', 'all').lower()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
+
+        # Filter by game mode
+        if gameMode != 'all':
+            gameModeFull = {
+                'normal': 'Normal Draft',
+                'solo': 'Ranked Solo',
+                'flex': 'Ranked Flex',
+                'swiftplay': 'Swift Play'
+            }.get(gameMode, '')
+            if gameModeFull:
+                parts = [p for p in parts if p.get('gameMode') == gameModeFull]
+
+        by_opp_rank = {}
+        ranks = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER']
+        roles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT']
+
+        for p in parts:
+            gid = p.get('gameId')
+            position = p.get('individualPosition') or 'UNKNOWN'
+            team_id = p.get('teamId')
+
+            opponent_team = 200 if team_id == 100 else 100
+
+            opponents = db.fetch_data('game_participants', filters={
+                'gameId': gid,
+                'teamId': opponent_team,
+                'individualPosition': position
+            })
+
+            if opponents:
+                opp = opponents[0]
+                opp_rank_str = opp.get('current_rank') or 'UNRANKED'
+                parts_rank = opp_rank_str.split('_')
+                opp_rank = parts_rank[0].upper() if parts_rank else 'UNRANKED'
+                if opp_rank not in ranks:
+                    continue  # Skip if not in defined ranks
+                if opp_rank in ['GRANDMASTER', 'CHALLENGER']:
+                    opp_rank = 'MASTER'
+
+                role = position.upper()
+                if role == 'UTILITY':
+                    role = 'SUPPORT'
+                if role not in roles:
+                    continue
+
+                if opp_rank not in by_opp_rank:
+                    by_opp_rank[opp_rank] = {
+                        'total_matches': 0,
+                        'wins': 0,
+                        'losses': 0,
+                        'kills': 0,
+                        'deaths': 0,
+                        'assists': 0,
+                        'cs': 0,
+                        'gold': 0,
+                        'duration': 0,
+                        'by_role': {r: {'matches': 0, 'wins': 0, 'losses': 0, 'kills': 0, 'deaths': 0, 'assists': 0, 'cs': 0, 'gold': 0, 'duration': 0} for r in roles}
+                    }
+
+                rank_data = by_opp_rank[opp_rank]
+                rank_data['total_matches'] += 1
+                rank_data['kills'] += p.get('kills', 0)
+                rank_data['deaths'] += p.get('deaths', 0)
+                rank_data['assists'] += p.get('assists', 0)
+                rank_data['cs'] += p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0)
+                rank_data['gold'] += p.get('goldEarned', 0)
+                rank_data['duration'] += (int(p.get('gameDuration') or 0))
+
+                team_rows = db.fetch_data('game_team', filters={'gameId': gid, 'teamId': team_id})
+                win = False
+                if team_rows:
+                    win_val = team_rows[0].get('win')
+                    win = str(win_val).lower() in ('true', 't', '1', 'yes', 'y', 'win')
+
+                if win:
+                    rank_data['wins'] += 1
+                else:
+                    rank_data['losses'] += 1
+
+                role_data = rank_data['by_role'][role]
+                role_data['matches'] += 1
+                role_data['kills'] += p.get('kills', 0)
+                role_data['deaths'] += p.get('deaths', 0)
+                role_data['assists'] += p.get('assists', 0)
+                role_data['cs'] += p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0)
+                role_data['gold'] += p.get('goldEarned', 0)
+                role_data['duration'] += (int(p.get('gameDuration') or 0))
+                if win:
+                    role_data['wins'] += 1
+                else:
+                    role_data['losses'] += 1
+
+        out = {'by_rank': {}}
+        for rank in ranks:
+            if rank in by_opp_rank:
+                rank_data = by_opp_rank[rank]
+                total = rank_data['total_matches']
+                if total < 10:
+                    continue
+                avg_kills = round(rank_data['kills'] / total, 1) if total else 0
+                avg_deaths = round(rank_data['deaths'] / total, 1) if total else 0
+                avg_assists = round(rank_data['assists'] / total, 1) if total else 0
+                kda = round((rank_data['kills'] + rank_data['assists']) / max(1, rank_data['deaths']), 1)
+                avg_cs = round((rank_data['cs'] / total)) if total else 0
+                avg_gold = round(rank_data['gold'] / total) if total else 0
+                avg_duration = rank_data['duration'] / total if total else 0
+                winrate = round((rank_data['wins'] / total * 100) if total else 0, 1)
+
+                out_rank = {
+                    'total_matches': total,
+                    'wins': rank_data['wins'],
+                    'losses': rank_data['losses'],
+                    'winrate': winrate,
+                    'avg_kills': avg_kills,
+                    'avg_deaths': avg_deaths,
+                    'avg_assists': avg_assists,
+                    'kda': kda,
+                    'avg_cs': avg_cs,
+                    'avg_gold': avg_gold,
+                    'avg_duration': avg_duration,
+                    'by_role': {}
+                }
+
+                for role in roles:
+                    r_data = rank_data['by_role'][role]
+                    r_total = r_data['matches']
+                    if r_total > 0:
+                        r_avg_kills = round(r_data['kills'] / r_total, 1)
+                        r_avg_deaths = round(r_data['deaths'] / r_total, 1)
+                        r_avg_assists = round(r_data['assists'] / r_total, 1)
+                        r_kda = round((r_data['kills'] + r_data['assists']) / max(1, r_data['deaths']), 1)
+                        r_avg_cs = round((r_data['cs'] / r_total)) if r_total else 0
+                        r_avg_duration = r_data['duration'] / r_total if r_total else 0
+                        r_avg_gold = round(r_data['gold'] / r_total)
+                        r_winrate = round((r_data['wins'] / r_total * 100), 1)
+
+                        out_rank['by_role'][role] = {
+                            'matches': r_total,
+                            'wins': r_data['wins'],
+                            'losses': r_data['losses'],
+                            'winrate': r_winrate,
+                            'avg_kills': r_avg_kills,
+                            'avg_deaths': r_avg_deaths,
+                            'avg_assists': r_avg_assists,
+                            'kda': r_kda,
+                            'avg_cs': r_avg_cs,
+                            'avg_duration': r_avg_duration,
+                            'avg_gold': r_avg_gold
+                        }
+
+                out['by_rank'][rank] = out_rank
+
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"api_performance error: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

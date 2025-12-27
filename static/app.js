@@ -1,6 +1,6 @@
 let currentPuuid = null;
 let matchesOffset = 0;
-let matchesLimit = 10;
+let matchesLimit = 8;
 let totalMatches = 0;
 let roleChart = null;
 let matchesGameModeFilter = 'all';
@@ -9,6 +9,20 @@ let eloGameModeFilter = 'all';
 let availableRoles = [];
 let itemNames = {};
 let sumspellNames = {};
+let currentRightView = 'recent';
+let currentRankFilter = 'all';
+
+// Définis ces constantes ici, elles sont globales
+const ranks = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER'];
+const roles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT'];
+
+const roleIconMap = {
+  'TOP': 'static/assets/roles/Top_icon.png',
+  'JUNGLE': 'static/assets/roles/Jungle_icon.png',
+  'MIDDLE': 'static/assets/roles/Middle_icon.png',
+  'BOTTOM': 'static/assets/roles/Adc_icon.png',
+  'SUPPORT': 'static/assets/roles/Support_icon.png'
+};
 
 async function fetchJSON(path) {
   const res = await fetch(path);
@@ -97,6 +111,12 @@ function getCSMinColor(csMin) {
   return '#e6dac2';
 }
 
+function getGoldMinColor(goldMin) {
+  if (goldMin >= 500) return '#0adf7a';
+  if (goldMin < 300) return '#ff5c66';
+  return '#e6dac2';
+}
+
 function roleToIcon(role) {
   const roleMap = {
     'TOP': 'Top_icon',
@@ -131,6 +151,7 @@ async function loadDefault() {
     currentPuuid = summoner.puuid;
     await loadAvailableRoles();
     await refresh();
+    await switchRightView(currentRightView); // Initialise la vue
   } catch (err) {
     console.error('Error loading default summoner:', err);
   }
@@ -219,13 +240,6 @@ async function refresh() {
 
 function drawRoleStatsChart(roleStats) {
   const validRoles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT'];
-  const roleIconMap = {
-    'TOP': 'static/assets/roles/Top_icon.png',
-    'JUNGLE': 'static/assets/roles/Jungle_icon.png',
-    'MIDDLE': 'static/assets/roles/Middle_icon.png',
-    'BOTTOM': 'static/assets/roles/Adc_icon.png',
-    'SUPPORT': 'static/assets/roles/Support_icon.png'
-  };
   
   const normalizedRoles = roleStats.map(r => {
     let role = r.role.toUpperCase();
@@ -755,7 +769,104 @@ async function loadMoreMatches(reset = false) {
   }
 }
 
-// Setup filter buttons
+// Nouvelle fonction pour switcher la vue dans right-col
+async function switchRightView(view) {
+  currentRightView = view;
+
+  const recentSection = document.getElementById('recent-matches-section');
+  const performanceSection = document.getElementById('elo-performance-section');
+  const recentBtn = document.getElementById('recent-matches-btn');
+  const performanceBtn = document.getElementById('elo-performance-btn');
+
+  if (view === 'recent') {
+    recentSection.style.display = 'block';
+    performanceSection.style.display = 'none';
+    recentBtn.classList.add('active');
+    performanceBtn.classList.remove('active');
+    // Recharge les matches si besoin
+    if (totalMatches === 0) {
+      matchesOffset = 0;
+      await loadMoreMatches(true);
+    }
+  } else {
+    recentSection.style.display = 'none';
+    performanceSection.style.display = 'block';
+    recentBtn.classList.remove('active');
+    performanceBtn.classList.add('active');
+    // Charge les data performance si pas déjà fait
+    if (!window._performanceData) {
+      const url = `/api/performance?puuid=${currentPuuid}`;
+      window._performanceData = await fetchJSON(url);
+    }
+    renderPerformance(window._performanceData);
+  }
+}
+
+// Nouvelle fonction pour render le contenu performance
+function renderPerformance(data) {
+  const container = document.getElementById('performance-container');
+  container.innerHTML = '';
+
+  const filteredRanks = currentRankFilter === 'all' ? ranks : [currentRankFilter];
+
+  filteredRanks.forEach(rank => {
+    const rankData = data.by_rank[rank];
+    if (!rankData) return;
+
+    const rankCard = document.createElement('div');
+    rankCard.className = 'card rank-card full-width';
+
+    const rankLower = rank.toLowerCase();
+    rankCard.innerHTML = `
+        <div class="rank-header">
+          <img src="static/assets/rank/rank_${rankLower}.png" alt="${rank}" class="rank-icon-small">
+          <h3>vs. ${rank}</h3>
+        </div>
+      `;
+
+    const rolesContainer = document.createElement('div');
+    rolesContainer.className = 'roles-container';
+
+    roles.forEach(role => {
+      const roleStats = rankData.by_role[role];
+      if (roleStats) {
+        const imgPath = roleIconMap[role];
+        const roleDiv = document.createElement('div');
+        const csPerMin = (roleStats.avg_cs / (roleStats.avg_duration / 60)).toFixed(1);
+        const csMinColor = getCSMinColor(csPerMin);
+        const goldPerMin = (roleStats.avg_gold / (roleStats.avg_duration / 60)).toFixed(1);
+        const goldPerMinColor = getGoldMinColor(goldPerMin);
+        const goldEarned = Math.round(roleStats.avg_gold / 1000);
+
+        roleDiv.className = 'card role-block';
+        roleDiv.innerHTML = `
+          <div class="role-icon">
+            <img src="${imgPath}" alt="${role}" class="lane-icon-small">
+          </div>
+          <div class="role-stats">
+            Games: ${roleStats.matches} • Winrate: ${roleStats.winrate}% <br>
+            <div class="match-kda-line">
+              <span class="match-kills">${roleStats.avg_kills}</span> / 
+              <span class="match-deaths">${roleStats.avg_deaths}</span> / 
+              <span class="match-assists">${roleStats.avg_assists}</span> | 
+              <span class="match-kda" style="color: ${getKdaColor(roleStats.kda)}">${formatKDA(roleStats.kda)} KDA</span>
+            </div>
+            <div class="match-gold">${roleStats.avg_cs} (<span style="color: ${csMinColor}">${csPerMin}</span>) CS • ${goldEarned}K (<span style="color: ${goldPerMinColor}">${goldPerMin}</span>) gold</div>
+          </div>
+        `;
+        rolesContainer.appendChild(roleDiv);
+      }
+    });
+
+    rankCard.appendChild(rolesContainer);
+    container.appendChild(rankCard);
+  });
+
+  if (container.children.length === 0) {
+    container.innerHTML = '<div class="card">No data available for the selected rank.</div>';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Matches game mode filters
   document.querySelectorAll('#matches-game-mode-filters .filter-btn').forEach(btn => {
@@ -857,6 +968,22 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadMoreMatches(false);
     });
   }
+
+  // Switch buttons
+  document.getElementById('recent-matches-btn').addEventListener('click', () => switchRightView('recent'));
+  document.getElementById('elo-performance-btn').addEventListener('click', () => switchRightView('performance'));
+
+  // Rank filters (pour performance)
+  document.querySelectorAll('.rank-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.rank-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentRankFilter = this.dataset.rank;
+      if (window._performanceData) {
+        renderPerformance(window._performanceData);
+      }
+    });
+  });
 
   loadDefault();
 });

@@ -367,6 +367,7 @@ class GameParticipant(Base):
     totalMinionsKilled = Column(Integer)
     totalAllyJungleMinionsKilled = Column(Integer)
     totalEnemyJungleMinionsKilled = Column(Integer)
+    neutralMinionsKilled = Column(Integer)
     timeCCingOthers = Column(Integer)
     totalTimeCCDealt = Column(Integer)
     current_rank = Column(String(100))

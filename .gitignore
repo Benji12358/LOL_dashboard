@@ -1,0 +1,5 @@
+__pycache__/*
+.github/*
+.lol_dashboard/*
+config/config.ini
+test_*.py

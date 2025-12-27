@@ -461,3 +461,8 @@ body{
 .switch-btn:hover {
   background: #444;
 }
+
+.external-links {
+  display: flex;
+  flex-direction: column;        /* Alignement vertical */
+}

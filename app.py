@@ -319,6 +319,7 @@ def api_matches():
             out.append({
                 'gameId': gid,
                 'position': position,
+                'opponent_role': position,
                 'champion_name': p.get('championName') or 'Unknown',
                 'opponent_champion': opponent_champ,
                 'kills': kills,
@@ -383,7 +384,7 @@ def api_available_roles():
         roles = set()
         for p in parts:
             pos = (p.get('individualPosition') or '').upper()
-            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT']:
+            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']:
                 roles.add(pos)
         
         return jsonify({'roles': sorted(list(roles))})
@@ -691,6 +692,151 @@ def api_last_30_summary():
         })
     except Exception as e:
         logger.error(f"api_last_30_summary error: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/matchup-stats')
+def api_matchup_stats():
+    """
+    Statistics per matchup for a summoner.
+    Query params:
+      - puuid (required)
+      - role (optional: all, TOP, JUNGLE, MIDDLE, BOTTOM, SUPPORT)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        role = request.args.get('role', 'all').upper()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
+
+        parts = sorted(parts, 
+                          key=lambda x: int(x['gameEndTimestamp'] or 0), 
+                          reverse=True)
+
+        if role != 'ALL':
+            parts = [p for p in parts if (p.get('individualPosition') or '').upper() == role]
+
+        by_matchup = {}
+
+        for p in parts:
+            my_champ = p.get('championName') or 'Unknown'
+            my_role = p.get('individualPosition').upper()
+            gid = p.get('gameId')
+            position = p.get('individualPosition') or 'UNKNOWN'
+            team_id = p.get('teamId')
+
+            opponent_team = 200 if team_id == 100 else 100
+
+            opponents = db.fetch_data('game_participants', filters={
+                'gameId': gid,
+                'teamId': opponent_team,
+                'individualPosition': position
+            })
+
+            if opponents:
+                opp = opponents[0]
+                opp_champ = opp.get('championName') or 'Unknown'
+                opp_role = opp.get('individualPosition').upper()
+
+                key = (my_champ, my_role, opp_champ, opp_role)
+
+                entry = by_matchup.setdefault(key, {
+                    'matches': 0,
+                    'wins': 0,
+                    'my_kills': 0,
+                    'my_deaths': 0,
+                    'my_assists': 0,
+                    'my_cs': 0,
+                    'my_gold': 0,
+                    'opp_kills': 0,
+                    'opp_deaths': 0,
+                    'opp_assists': 0,
+                    'opp_cs': 0,
+                    'opp_gold': 0,
+                    'duration': 0,
+                    'recent_form': []
+                })
+
+                entry['matches'] += 1
+                entry['my_kills'] += int(p.get('kills') or 0)
+                entry['my_deaths'] += int(p.get('deaths') or 0)
+                entry['my_assists'] += int(p.get('assists') or 0)
+                entry['my_cs'] += int(p.get('totalMinionsKilled') or 0) + int(p.get('neutralMinionsKilled') or 0)
+                entry['my_gold'] += int(p.get('goldEarned') or 0)
+
+                entry['opp_kills'] += int(opp.get('kills') or 0)
+                entry['opp_deaths'] += int(opp.get('deaths') or 0)
+                entry['opp_assists'] += int(opp.get('assists') or 0)
+                entry['opp_cs'] += int(opp.get('totalMinionsKilled') or 0) + int(opp.get('neutralMinionsKilled') or 0)
+                entry['opp_gold'] += int(opp.get('goldEarned') or 0)
+
+                entry['duration'] += int(p.get('gameDuration') or 0)
+
+                team_rows = db.fetch_data('game_team', filters={'gameId': gid, 'teamId': team_id})
+                win = False
+                if team_rows:
+                    w = team_rows[0].get('win')
+                    win = str(w).lower() in ('true', 't', '1', 'yes', 'y', 'win')
+
+                if win:
+                    entry['wins'] += 1
+                    entry['recent_form'].append('W')
+                else:
+                    entry['recent_form'].append('L')
+
+        out = []
+        for (my_champ, my_role, opp_champ, opp_role), v in by_matchup.items():
+            matches = v['matches']
+            wins = v['wins']
+            avg_duration = v['duration'] / matches
+
+            my_avg_kills = v['my_kills'] / matches
+            my_avg_deaths = v['my_deaths'] / matches
+            my_avg_assists = v['my_assists'] / matches
+            my_avg_cs = v['my_cs'] / matches
+            my_cs_min = my_avg_cs / (avg_duration / 60) if avg_duration > 0 else 0
+            my_avg_gold = v['my_gold'] / matches
+            my_gold_min = my_avg_gold / (avg_duration / 60) if avg_duration > 0 else 0
+
+            opp_avg_kills = v['opp_kills'] / matches
+            opp_avg_deaths = v['opp_deaths'] / matches
+            opp_avg_assists = v['opp_assists'] / matches
+            opp_avg_cs = v['opp_cs'] / matches
+            opp_cs_min = opp_avg_cs / (avg_duration / 60) if avg_duration > 0 else 0
+            opp_avg_gold = v['opp_gold'] / matches
+            opp_gold_min = opp_avg_gold / (avg_duration / 60) if avg_duration > 0 else 0
+
+            winrate = (wins / matches * 100) if matches > 0 else 0
+
+            out.append({
+                'my_champ': my_champ,
+                'my_role': my_role,
+                'opp_champ': opp_champ,
+                'opp_role': opp_role,
+                'matches': matches,
+                'winrate': round(winrate, 1),
+                'my_avg_kills': round(my_avg_kills, 1),
+                'my_avg_deaths': round(my_avg_deaths, 1),
+                'my_avg_assists': round(my_avg_assists, 1),
+                'my_avg_cs': round(my_avg_cs, 1),
+                'my_cs_min': round(my_cs_min, 1),
+                'my_avg_gold': round(my_avg_gold, 1),
+                'my_gold_min': round(my_gold_min, 1),
+                'opp_avg_kills': round(opp_avg_kills, 1),
+                'opp_avg_deaths': round(opp_avg_deaths, 1),
+                'opp_avg_assists': round(opp_avg_assists, 1),
+                'opp_avg_cs': round(opp_avg_cs, 1),
+                'opp_cs_min': round(opp_cs_min, 1),
+                'opp_avg_gold': round(opp_avg_gold, 1),
+                'opp_gold_min': round(opp_gold_min, 1),
+                'recent_form': v['recent_form'][:5]
+            })
+
+        out.sort(key=lambda x: x['matches'], reverse=True)
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"api_matchup_stats error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/performance')

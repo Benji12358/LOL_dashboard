@@ -109,6 +109,7 @@
         <button id="recent-matches-btn" class="switch-btn active">Recent Matches</button>
         <button id="last-30-btn" class="switch-btn">Last 30 Summary</button>
         <button id="elo-performance-btn" class="switch-btn">Elo Performance</button>
+        <button id="matchup-stats-btn" class="switch-btn">Matchup Stats</button>
       </div>
 
       <div id="recent-matches-section" class="card">
@@ -193,6 +194,42 @@
       <div id="last-30-section" class="card" style="display: none;">
         <h2>Last 30 Games Summary</h2>
         <div id="last-30-content"></div>
+      </div>
+
+      <div id="matchup-stats-section" class="card" style="display: none;">
+        <div class="matchup-header-wrapper">
+          <button id="back-to-matchups" class="back-btn" style="display: none;">
+            ← Back to matchups
+          </button>
+          <h2 id="matchup-title">Matchup Stats</h2>
+        
+          <div id="matchup-lane-selector" class="filter-group" style="margin-right: 0; margin-left: auto; display: flex;">
+            <label>Role:</label>
+            <div id="matches-role-filters" class="filter-buttons role-buttons">
+              <button class="filter-btn active role-btn" data-lane="role" data-value="all" title="All Roles">
+                <img src="static/assets/roles/All_icon.png" alt="Top">
+              </button>
+              <button class="filter-btn role-btn" data-lane="role" data-value="TOP" title="Top">
+                <img src="static/assets/roles/Top_icon.png" alt="Top">
+              </button>
+              <button class="filter-btn role-btn" data-lane="role" data-value="JUNGLE" title="Jungle">
+                <img src="static/assets/roles/Jungle_icon.png" alt="Jungle">
+              </button>
+              <button class="filter-btn role-btn" data-lane="role" data-value="MIDDLE" title="Mid">
+                <img src="static/assets/roles/Middle_icon.png" alt="Mid">
+              </button>
+              <button class="filter-btn role-btn" data-lane="role" data-value="BOTTOM" title="ADC">
+                <img src="static/assets/roles/Adc_icon.png" alt="ADC">
+              </button>
+              <button class="filter-btn role-btn" data-lane="role" data-value="UTILITY" title="Support">
+                <img src="static/assets/roles/Support_icon.png" alt="Support">
+              </button>
+            </div>
+          </div>
+        
+        </div>
+          
+        <div id="matchup-content"></div>
       </div>
     </section>
   </main>

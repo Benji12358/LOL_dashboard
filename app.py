@@ -63,7 +63,7 @@ def api_summary():
     try:
         puuid = request.args.get('puuid', '').strip()
         if not puuid:
-            return jsonify({'error': 'puuid parameter required'}), 400
+            return jsonify({'error': 'puuid required'}), 400
 
         # Filter out remakes and ARAM with gameStatusProcess field
         parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
@@ -143,7 +143,7 @@ def api_champions():
             entry['kills'] += (p.get('kills') or 0)
             entry['deaths'] += (p.get('deaths') or 0)
             entry['assists'] += (p.get('assists') or 0)
-            entry['cs'] += p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0)
+            entry['cs'] += (p.get('totalMinionsKilled') or 0)
             entry['duration'] += (int(p.get('gameDuration') or 0))
 
             gid = p.get('gameId')
@@ -299,7 +299,7 @@ def api_matches():
                 opponent_deaths = opp.get('deaths') or 0
                 opponent_assists = opp.get('assists') or 0
                 opponent_kda = round((opponent_kills + opponent_assists) / max(1, opponent_deaths), 2)
-                opponent_cs = opp.get('totalMinionsKilled', 0) + opp.get('neutralMinionsKilled', 0)
+                opponent_cs = opp.get('totalMinionsKilled') or 0
                 opponent_gold = opp.get('goldEarned') or 0
                 opponent_items = [opp.get(f'item{i}') or 0 for i in range(6)]
                 opponent_summoner1 = opp.get('summoner1Id') or 0
@@ -326,7 +326,7 @@ def api_matches():
                 'assists': assists,
                 'kda': kda,
                 'goldEarned': p.get('goldEarned'),
-                'totalMinionsKilled': p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0),
+                'totalMinionsKilled': p.get('totalMinionsKilled'),
                 'item0': items[0],
                 'item1': items[1],
                 'item2': items[2],
@@ -383,7 +383,7 @@ def api_available_roles():
         roles = set()
         for p in parts:
             pos = (p.get('individualPosition') or '').upper()
-            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']:
+            if pos in ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT']:
                 roles.add(pos)
         
         return jsonify({'roles': sorted(list(roles))})
@@ -594,6 +594,103 @@ def api_update_api_key():
         return jsonify({'message': 'API key updated successfully'})
     except Exception as e:
         logger.error(f"api_update_api_key error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/last-30-summary')
+def api_last_30_summary():
+    """
+    Summary of last 30 games for a summoner.
+    Query params:
+      - puuid (required)
+    """
+    try:
+        puuid = request.args.get('puuid', '').strip()
+        if not puuid:
+            return jsonify({'error': 'puuid required'}), 400
+
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        parts = sorted(parts, key=lambda x: int(x.get('gameEndTimestamp') or 0), reverse=True)[:30]
+
+        if not parts:
+            return jsonify({'error': 'no matches found'}), 404
+
+        avg_kills = sum(int(p.get('kills') or 0) for p in parts) / len(parts)
+        avg_deaths = sum(int(p.get('deaths') or 0) for p in parts) / len(parts)
+        avg_assists = sum(int(p.get('assists') or 0) for p in parts) / len(parts)
+        avg_cs = sum(int(p.get('totalMinionsKilled') or 0) for p in parts) / len(parts)
+        avg_cs_min = avg_cs / (sum(int(p.get('gameDuration') or 0) for p in parts) / len(parts) / 60)
+        avg_gold = sum(int(p.get('goldEarned') or 0) for p in parts) / len(parts)
+        avg_gold_min = avg_gold / (sum(int(p.get('gameDuration') or 0) for p in parts) / len(parts) / 60)
+        avg_game_duration = sum(int(p.get('gameDuration') or 0) for p in parts) / len(parts)
+
+        champions_played = {}
+        opponents_faced = {}
+        opp_avg_kills = 0
+        opp_avg_deaths = 0
+        opp_avg_assists = 0
+        opp_avg_cs = 0
+        opp_avg_cs_min = 0
+        opp_avg_gold = 0
+        opp_avg_gold_min = 0
+        total_duration = sum(int(p.get('gameDuration') or 0) for p in parts) / len(parts)
+
+        for p in parts:
+            champ = p.get('championName')
+            role = p.get('individualPosition').upper()
+            champions_played[(champ, role)] = champions_played.get((champ, role), 0) + 1
+
+            gid = p.get('gameId')
+            position = p.get('individualPosition') or 'UNKNOWN'
+            team_id = p.get('teamId')
+            opponent_team = 200 if team_id == 100 else 100
+
+            opponents = db.fetch_data('game_participants', filters={
+                'gameId': gid,
+                'teamId': opponent_team,
+                'individualPosition': position
+            })
+
+            if opponents:
+                opp = opponents[0]
+                opp_champ = opp.get('championName')
+                opp_role = opp.get('individualPosition').upper()
+                opponents_faced[(opp_champ, opp_role)] = opponents_faced.get((opp_champ, opp_role), 0) + 1
+
+                opp_avg_kills += int(opp.get('kills') or 0)
+                opp_avg_deaths += int(opp.get('deaths') or 0)
+                opp_avg_assists += int(opp.get('assists') or 0)
+                opp_avg_cs += int(opp.get('totalMinionsKilled') or 0)
+                opp_avg_gold += int(opp.get('goldEarned') or 0)
+
+        opp_avg_kills /= len(parts)
+        opp_avg_deaths /= len(parts)
+        opp_avg_assists /= len(parts)
+        opp_avg_cs /= len(parts)
+        opp_avg_cs_min = opp_avg_cs / (total_duration / 60)
+        opp_avg_gold /= len(parts)
+        opp_avg_gold_min = opp_avg_gold / (total_duration / 60)
+
+        return jsonify({
+            'avg_kills': round(avg_kills, 1),
+            'avg_deaths': round(avg_deaths, 1),
+            'avg_assists': round(avg_assists, 1),
+            'avg_cs': round(avg_cs, 1),
+            'avg_cs_min': round(avg_cs_min, 1),
+            'avg_gold': round(avg_gold, 1),
+            'avg_gold_min': round(avg_gold_min, 1),
+            'avg_game_duration': round(avg_game_duration, 1),
+            'champions_played': list(champions_played.keys()),
+            'opponents_faced': list(opponents_faced.keys()),
+            'opp_avg_kills': round(opp_avg_kills, 1),
+            'opp_avg_deaths': round(opp_avg_deaths, 1),
+            'opp_avg_assists': round(opp_avg_assists, 1),
+            'opp_avg_cs': round(opp_avg_cs, 1),
+            'opp_avg_cs_min': round(opp_avg_cs_min, 1),
+            'opp_avg_gold': round(opp_avg_gold, 1),
+            'opp_avg_gold_min': round(opp_avg_gold_min, 1)
+        })
+    except Exception as e:
+        logger.error(f"api_last_30_summary error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/performance')

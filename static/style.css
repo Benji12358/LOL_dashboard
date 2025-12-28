@@ -466,3 +466,32 @@ body{
   display: flex;
   flex-direction: column;        /* Alignement vertical */
 }
+
+.champ-icon-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 5px;
+}
+
+.summary-block {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  display: flex;
+  grid-template-columns: 1fr 1fr; /* 1/2, 1/2 via fr units */
+  gap: 30px;
+  align-items: center;
+}
+
+.champs-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.summoner-section, .opponent-section {
+  width: 50%;
+  text-align: center;
+  margin-top: 0px; 
+  margin-bottom: auto;
+}

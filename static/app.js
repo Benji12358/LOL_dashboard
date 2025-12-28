@@ -128,6 +128,25 @@ function roleToIcon(role) {
   return roleMap[role] || null;
 }
 
+function renderChampList(champions_list, text) {
+  champListHtml = `
+  <h3 style="text-align: left; margin-top: 50px">${text}</h3>
+  <div class="champs-list">
+  `;
+  champions_list.forEach(([champ, role]) => {
+    const roleIcon = roleToIcon(role);
+    innerHTML = `
+      <div class="champ-icon-wrapper">
+        <img src="static/assets/champion/${champ.replace(/\s+/g, '')}.png" alt="${champ}" class="match-champ-icon" title="${champ}">
+        <img src="static/assets/roles/${roleIcon}.png" alt="${role}" class="match-role-icon" title="${role}">
+      </div>
+    `;
+    champListHtml += `${innerHTML}`;
+  });
+  champListHtml += `</div>`;
+  return champListHtml;
+}
+
 function renderItemSlots(items, summoner1Id, summoner2Id, zoomlvl) {
   const itemHtml = `
     <div class="items-section" style="zoom:${zoomlvl};">
@@ -775,31 +794,102 @@ async function switchRightView(view) {
 
   const recentSection = document.getElementById('recent-matches-section');
   const performanceSection = document.getElementById('elo-performance-section');
+  const last30Section = document.getElementById('last-30-section');
+
   const recentBtn = document.getElementById('recent-matches-btn');
   const performanceBtn = document.getElementById('elo-performance-btn');
+  const last30Btn = document.getElementById('last-30-btn');
+
+  // Masquer toutes les sections
+  recentSection.style.display = 'none';
+  performanceSection.style.display = 'none';
+  last30Section.style.display = 'none';
+
+  // Déactiver tous les boutons
+  recentBtn.classList.remove('active');
+  performanceBtn.classList.remove('active');
+  last30Btn.classList.remove('active');
 
   if (view === 'recent') {
     recentSection.style.display = 'block';
-    performanceSection.style.display = 'none';
     recentBtn.classList.add('active');
-    performanceBtn.classList.remove('active');
-    // Recharge les matches si besoin
     if (totalMatches === 0) {
       matchesOffset = 0;
       await loadMoreMatches(true);
     }
-  } else {
-    recentSection.style.display = 'none';
+  } else if (view === 'performance') {
     performanceSection.style.display = 'block';
-    recentBtn.classList.remove('active');
     performanceBtn.classList.add('active');
-    // Charge les data performance si pas déjà fait
     if (!window._performanceData) {
       const url = `/api/performance?puuid=${currentPuuid}`;
       window._performanceData = await fetchJSON(url);
     }
     renderPerformance(window._performanceData);
+  } else if (view === 'last30') {
+    last30Section.style.display = 'block';
+    last30Btn.classList.add('active');
+    if (!window._last30Data) {
+      const url = `/api/last-30-summary?puuid=${currentPuuid}`;
+      window._last30Data = await fetchJSON(url);
+    }
+    renderLast30(window._last30Data);
   }
+}
+
+// Nouvelle fonction pour render le résumé des 30 dernières parties
+function renderLast30(data) {
+  const container = document.getElementById('last-30-content');
+  container.innerHTML = '';
+
+  const summaryDiv = document.createElement('div');
+  const avg_kda =  (data.avg_kills + data.avg_assists) / data.avg_deaths;
+  const opp_avg_kda = (data.opp_avg_kills + data.opp_avg_assists) / data.opp_avg_deaths;
+  const kdaColor = getKdaColor(avg_kda);
+  const formattedKDA = formatKDA(avg_kda);
+  const oppkdaColor = getKdaColor(opp_avg_kda);
+  const oppformattedKDA = formatKDA(opp_avg_kda);
+  const csMinColor = getCSMinColor(data.avg_cs_min);
+  const oppCsMinColor = getCSMinColor(data.opp_avg_cs_min);
+  const totalGold = Math.round(data.avg_gold / 1000);
+  const totalOppGold = Math.round(data.opp_avg_gold / 1000);
+  const goldPerMin = (data.avg_gold / (data.avg_game_duration / 60)).toFixed(1);
+  const oppGoldPerMin = (data.opp_avg_gold / (data.avg_game_duration / 60)).toFixed(1);
+  const goldMinColor = getGoldMinColor(goldPerMin);
+  const oppGoldMinColor = getGoldMinColor(oppGoldPerMin);
+  
+  const champListHtml = renderChampList(data.champions_played, text='Champions Played');
+  const oppChampListHtml = renderChampList(data.opponents_faced, text='Opponents Faced');
+  summaryDiv.className = 'summary-block';
+  summaryDiv.innerHTML = `
+    <div class="summoner-section">
+      <h3>Average Stats</h3>
+      <div class="match-kda-line">
+        <span class="match-kills">${data.avg_kills}</span> / 
+        <span class="match-deaths">${data.avg_deaths}</span> / 
+        <span class="match-assists">${data.avg_assists}</span> |
+        <span class="match-kda" style="color: ${kdaColor}">${formattedKDA} KDA</span>
+      </div>
+      <div class="match-gold">${data.avg_cs} (<span style="color: ${csMinColor}">${data.avg_cs_min}</span>) CS • ${totalGold}K (<span style="color: ${goldMinColor}">${goldPerMin}</span>) gold</div>
+    
+      ${champListHtml}
+    
+    </div>
+    <div class="opponent-section">
+      <h3>Opponents Average Stats</h3>
+      <div class="match-kda-line">
+        <span class="match-kills">${data.opp_avg_kills}</span> / 
+        <span class="match-deaths">${data.opp_avg_deaths}</span> / 
+        <span class="match-assists">${data.opp_avg_assists}</span> |
+        <span class="match-kda" style="color: ${oppkdaColor}">${oppformattedKDA} KDA</span>
+      </div>
+      <div class="match-gold">${data.opp_avg_cs} (<span style="color: ${oppCsMinColor}">${data.opp_avg_cs_min}</span>) CS • ${totalOppGold}K (<span style="color: ${oppGoldMinColor}">${oppGoldPerMin}</span>) gold</div>
+    
+      ${oppChampListHtml}
+    
+      </div>
+
+  `;
+  container.appendChild(summaryDiv);
 }
 
 // Nouvelle fonction pour render le contenu performance
@@ -972,6 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Switch buttons
   document.getElementById('recent-matches-btn').addEventListener('click', () => switchRightView('recent'));
   document.getElementById('elo-performance-btn').addEventListener('click', () => switchRightView('performance'));
+  document.getElementById('last-30-btn').addEventListener('click', () => switchRightView('last30'));
 
   // Rank filters (pour performance)
   document.querySelectorAll('.rank-btn').forEach(btn => {

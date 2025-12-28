@@ -273,7 +273,7 @@ class DatabaseManager:
                 case _:
                     cured_participant["gameMode"] = "other"
 
-            if additional_info["remake_status"] or cured_participant["gameMode"] == "ARAM":
+            if additional_info["remake_status"] or cured_participant["gameMode"] == "ARAM"  or cured_participant["gameMode"] == "other":
                 cured_participant["gameStatusProcess"] = "Avoid"
             else:
                 cured_participant["gameStatusProcess"] = "Normal"

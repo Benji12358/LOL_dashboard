@@ -21,19 +21,23 @@
           <div id="summoner-tag" class="tag">—</div>
           
           <button id="db-update-btn" class="db-action-btn update-btn" title="Update Database">
-            <span>🔄</span> Update Database
+            <img src="static/assets/webUI/update_db.png" class="img-header">
+            <p>Update Database</p>
           </button>
           <button id="db-delete-btn" class="db-action-btn delete-btn" title="Clear Database">
-            <span>🗑️</span> Clear Database
+            <img src="static/assets/webUI/delete_db.png" class="img-header">
+            <p>Clear Database</p>
           </button>
         </div>
 
         <div class="api-actions">
           <button id="test-api-btn" class="db-action-btn test-btn" title="Test API Key">
-            <span>🔑</span> Test Key
+            <img src="static/assets/webUI/test_key.png" class="img-header">
+            <p>Test Key</p>
           </button>
           <button id="update-api-btn" class="db-action-btn update-key-btn" title="Update API Key">
-            <span>✏️</span> Update Key
+            <img src="static/assets/webUI/edit_key.png" class="img-header">
+            <p>Update Key</p>
           </button>
         </div>
       </div>
@@ -60,15 +64,15 @@
       <div class="external-links" class="summoner-info">
 
         <a id="mobalytics-link" class="db-action-btn" href="#" target="_blank">
-          <img src="static/assets/external/mobalytics.png" alt="Mobalytics" style="width:22px;height:22px;vertical-align:middle;margin-right:4px;">Mobalytics
+          <img src="static/assets/external/mobalytics.png" alt="Mobalytics" class="img-header">Mobalytics
         </a>
         <br>
         <a id="dpm-link" class="db-action-btn" href="#" target="_blank">
-          <img src="static/assets/external/dpm.png" alt="dpm.lol" style="width:22px;height:22px;vertical-align:middle;margin-right:4px;">dpm.lol
+          <img src="static/assets/external/dpm.png" alt="dpm.lol" class="img-header">dpm.lol
         </a>
         <br>
         <a id="lographs-link" class="db-action-btn" href="#" target="_blank">
-          <img src="static/assets/external/lographs.png" alt="League of Graphs" style="width:22px;height:22px;vertical-align:middle;margin-right:4px;">League of Graphs
+          <img src="static/assets/external/lographs.png" alt="League of Graphs" class="img-header">League of Graphs
         </a>
       </div>
     </div>
@@ -77,12 +81,18 @@
   <main class="container main">
     <section class="left-col">
       <div class="card">
-        <h2>Role Stats</h2>
+        <div class="card-header">
+          <img src="static/assets/webUI/roles.png" class="img-header">
+          <h2>Role Stats</h2>
+        </div>
         <canvas id="role-stats-chart" height="200"></canvas>
       </div>
 
       <div class="card">
-        <h2>Opponents Elo Distribution</h2>
+        <div class="card-header">
+          <img src="static/assets/webUI/opp_elo.png" class="img-header">
+          <h2>Opponents Elo</h2>
+        </div>
         <div id="elo-game-mode-filters" class="filter-buttons" style="margin-bottom:8px;">
           <button class="filter-btn active" data-filter="gameMode" data-value="all">All</button>
           <button class="filter-btn" data-filter="gameMode" data-value="normal">Normal</button>
@@ -94,22 +104,40 @@
       </div>
 
       <div class="card">
-        <h2>Top Champions</h2>
+        <div class="card-header">
+          <img src="static/assets/webUI/champions.png" class="img-header">
+          <h2>Top Champions</h2>
+        </div>
         <div id="champions-list" class="champ-column"></div>
       </div>
 
       <div class="card">
-        <h2>Ping Stats</h2>
+        <div class="card-header">
+          <img src="static/assets/webUI/pings.png" class="img-header">
+          <h2>Ping Stats</h2>
+        </div>
         <div id="ping-stats" class="ping-grid"></div>
       </div>
     </section>
 
     <section class="right-col">
       <div class="view-switcher">
-        <button id="recent-matches-btn" class="switch-btn active">Recent Matches</button>
-        <button id="last-30-btn" class="switch-btn">Last 30 Summary</button>
-        <button id="elo-performance-btn" class="switch-btn">Elo Performance</button>
-        <button id="matchup-stats-btn" class="switch-btn">Matchup Stats</button>
+        <button id="recent-matches-btn" class="switch-btn active">
+          <img src="static/assets/webUI/recent.png" class="img-header">
+          <p>Recent Games</p>
+        </button>
+        <button id="last-30-btn" class="switch-btn">
+          <img src="static/assets/webUI/last_30.png" class="img-header">
+          <p>Last 30 Summary</p>
+        </button>
+        <button id="elo-performance-btn" class="switch-btn">
+          <img src="static/assets/webUI/elo_perf.png" class="img-header">
+          <p>Elo Performance</p>
+        </button>
+        <button id="matchup-stats-btn" class="switch-btn">
+          <img src="static/assets/webUI/matchup.png" class="img-header">
+          <p>Matchup Stats</p>
+        </button>
       </div>
 
       <div id="recent-matches-section" class="card">
@@ -199,7 +227,8 @@
       <div id="matchup-stats-section" class="card" style="display: none;">
         <div class="matchup-header-wrapper">
           <button id="back-to-matchups" class="back-btn" style="display: none;">
-            ← Back to matchups
+            <img src="static/assets/webUI/back.png" class="img-header">
+            <p>Back to matchups</p>
           </button>
           <h2 id="matchup-title">Matchup Stats</h2>
         

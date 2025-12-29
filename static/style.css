@@ -1,20 +1,27 @@
 /* Minimal styling inspired by dpm.lol color palette */
 :root{
-  --bg:#040a25;
-  --card:#0f1a2b;
+  --bg:#00141f;
+  --bg2:#001b29;
+  --card:#001824;
   --accent:#d7b04a;
   --muted:#9fa3a6;
   --win:#156ee2;
   --loss:#ff5c66;
-  --glass: rgba(255,255,255,0.03);
-  --border: rgba(216,176,74,0.08);
+  --glass: rgba(255, 255, 255, 0.025);
+  /* --border: rgba(216, 176, 74, 0.254); */
+  --border: rgba(212, 210, 203, 0.254);
 }
 
 *{box-sizing:border-box;font-family:Inter,Segoe UI,Helvetica,Arial;}
 
 body{
-  background: linear-gradient(180deg,var(--bg),#071028);
+  background: linear-gradient(var(--bg),var(--bg2));
   color:#e6dac2;margin:0;
+}
+
+html {
+  margin: 0;
+  background-color: #00141f;
 }
 
 .container{
@@ -44,6 +51,9 @@ body{
 
 .api-actions {
   margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  margin-left: 8px;
 }
 
 .summary-metrics {
@@ -59,35 +69,6 @@ body{
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.db-action-btn {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
-  color: #e6dac2;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.2s;
-  margin-bottom: 5px;
-  margin-left: 5px;
-  margin-right: 5px;
-}
-
-.db-action-btn:hover {
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  color: var(--accent);
-}
-
-.update-btn {
-  border-color: #0adf7a;
-}
-
-.delete-btn {
-  border-color: #ff5c66;
 }
 
 .summoner-info h1{font-size:28px;margin:0;}
@@ -241,14 +222,6 @@ body{
 .opponent-kda{margin-left:6px;font-weight:700;}
 .opponent-gold{color:var(--muted);font-size:11px;}
 
-/* Load More Button */
-.load-more-btn{
-  width:100%;padding:12px;margin-top:12px;
-  background:var(--accent);color:#081428;border:none;border-radius:6px;
-  font-weight:700;cursor:pointer;transition:opacity 0.2s;
-}
-.load-more-btn:hover{opacity:0.9;}
-
 /* Opponent Elo Chart */
 #opponent-elo-chart {
   background: var(--glass);
@@ -289,59 +262,9 @@ body{
   gap: 6px;
 }
 
-.filter-btn {
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--accent);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.filter-btn:hover:not(.disabled) {
-  background: var(--bg);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.filter-btn.active {
-  background: var(--bg);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.filter-btn.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* Role buttons with icons */
 .role-buttons {
   gap: 4px;
-}
-
-.role-btn {
-  padding: 6px 8px;
-  min-width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.role-btn img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
-.role-btn[data-value="all"] {
-  width: auto;
-  min-width: 50px;
-  padding: 8px 12px;
 }
 
 @media(max-width:968px){
@@ -354,6 +277,7 @@ body{
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
   /* flex-wrap: wrap; */
   /* background-color: var(--glass);
   border-radius: 8px; */
@@ -364,35 +288,6 @@ body{
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.rank-btn {
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--accent);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.rank-btn:hover:not(.disabled) {
-  background: var(--bg);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.rank-btn.active {
-  background: var(--bg);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.rank-btn.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .rank-card {
@@ -441,30 +336,14 @@ body{
   justify-content: center;
 }
 
-.switch-btn {
-  padding: 8px 16px;
-  background: #2c2c2c;
-  color: #e6dac2;
-  border: 1px solid #444;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: bold;
-}
-
-.switch-btn.active {
-  background: #d7b04a;
-  color: #1a1a1a;
-  border-color: #b8951f;
-}
-
-.switch-btn:hover {
-  background: #444;
-}
-
 .external-links {
   display: flex;
   flex-direction: column;        /* Alignement vertical */
+  gap: 3px;
+}
+
+.external-links a {
+  text-decoration: none;
 }
 
 .champ-icon-wrapper {
@@ -508,20 +387,103 @@ body{
   margin-bottom: 15px;
 }
 
-.back-btn {
-  padding: 8px 16px;
-  background: #2c2c2c;
-  color: #e6dac2;
-  border: 1px solid #444;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.back-btn:hover {
-  background: #444;
-}
-
 #matchup-title {
   margin: 0;
+}
+
+.card-header {
+  display: flex;
+}
+
+.card-header h2 {
+  text-transform: uppercase;
+}
+
+.img-header {
+  width:22px;
+  height:22px;
+  vertical-align:middle;
+  margin-right:10px;
+}
+
+/* All buttons */
+.load-more-btn{
+  width:100%;
+  padding:12px;
+  margin-top:12px;
+  background:var(--accent);
+  color:#081428;
+  border:none;
+  border-radius:6px;
+  font-weight:700;
+  cursor:pointer;
+  transition:opacity 0.2s;
+}
+
+.load-more-btn:hover{
+  opacity:0.9;
+}
+
+.role-btn {
+  padding: 6px 8px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.role-btn img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.role-btn[data-value="all"] {
+  width: auto;
+  min-width: 50px;
+  padding: 8px 12px;
+}
+
+.switch-btn, .back-btn, .db-action-btn, .filter-btn, .rank-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s;
+  display: flex;
+}
+
+.switch-btn.active, .filter-btn.active, .rank-btn.active {
+  background: var(--bg);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch-btn:hover, .back-btn:hover, .filter-btn:hover:not(.disabled), .rank-btn:hover:not(.disabled), .db-action-btn:hover {
+  background: var(--bg);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.filter-btn.disabled, .rank-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.update-btn {
+  border-color: #0adf7a;
+}
+
+.delete-btn {
+  border-color: #ff5c66;
+}
+
+.switch-btn p, .db-action-btn p, .back-btn p {
+  margin-top: 3px;
+  margin-bottom: 0px;
 }

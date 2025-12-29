@@ -322,7 +322,6 @@ function drawRoleStatsChart(roleStats) {
       layout: {
         padding: {
           bottom: 55,  // espace pour icons et text
-          top: 10
         }
       },
       scales: {
@@ -694,7 +693,7 @@ async function loadMoreMatches(reset = false) {
     Object.entries(matchesByDate).forEach(([date, dayMatches]) => {
       const dateDiv = document.createElement('div');
       dateDiv.className = 'match-date-group';
-      dateDiv.innerHTML = `<div class="match-date">${date}</div>`;
+      dateDiv.innerHTML = `<div class="match-date"><img src="static/assets/webUI/calendar.png" class="img-header" style="margin-top: -5px;">${date}</div>`;
 
       dayMatches.forEach(m => {
         const resultClass = m.win ? 'win' : 'loss';
@@ -1017,7 +1016,7 @@ async function showMatchupGames() {
   const { my_champ, my_role, opp_champ, opp_role } = currentSelectedMatchup;
 
   // Afficher le bouton retour et changer le titre
-  document.getElementById('back-to-matchups').style.display = 'inline-block';
+  document.getElementById('back-to-matchups').style.display = 'flex';
   document.getElementById('matchup-lane-selector').style.display = 'none';
   document.getElementById('matchup-title').textContent = `${my_champ} vs ${opp_champ} (${my_role})`;
 
@@ -1059,7 +1058,7 @@ async function showMatchupGames() {
     Object.entries(matchesByDate).forEach(([date, dayMatches]) => {
       const dateDiv = document.createElement('div');
       dateDiv.className = 'match-date-group';
-      dateDiv.innerHTML = `<div class="match-date">${date}</div>`;
+      dateDiv.innerHTML = `<div class="match-date"><img src="static/assets/webUI/calendar.png" class="img-header" style="margin-top: -5px;">${date}</div>`;
 
       dayMatches.forEach(m => {
         const resultClass = m.win ? 'win' : 'loss';

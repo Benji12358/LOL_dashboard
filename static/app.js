@@ -706,8 +706,16 @@ async function loadMoreMatches(reset = false) {
         const duration = formatDuration(m.gameDuration);
         const formattedKDA = formatKDA(m.kda);
 
-        // Calcul CS par minute
+        // Calcul des golds
         const gameDurationMins = m.gameDuration / 60;
+        const totalGold = Math.round(m.goldEarned / 1000);
+        const goldPerMin = (m.goldEarned / gameDurationMins).toFixed();
+        const goldMinColor = getGoldMinColor(goldPerMin);
+        const oppTotalGold = Math.round(m.opponent_gold / 1000);
+        const oppGoldPerMin = (m.opponent_gold / gameDurationMins).toFixed();
+        const oppGoldMinColor = getGoldMinColor(oppGoldPerMin);
+
+        // Calcul CS par minute
         const csPerMin = (m.totalMinionsKilled / gameDurationMins).toFixed(1);
         const opponentCsPerMin = (m.opponent_cs / gameDurationMins).toFixed(1);
         const csMinColor = getCSMinColor(csPerMin);
@@ -744,7 +752,7 @@ async function loadMoreMatches(reset = false) {
               <span class="match-assists">${m.assists}</span> |
               <span class="match-kda" style="color: ${kdaColor}">${formattedKDA} KDA</span>
             </div>
-            <div class="match-gold">${m.totalMinionsKilled} (<span style="color: ${csMinColor}">${csPerMin}</span>) CS • ${m.goldEarned} gold</div>
+            <div class="match-gold">${m.totalMinionsKilled} (<span style="color: ${csMinColor}">${csPerMin}</span>) CS • ${totalGold}K (<span style="color: ${goldMinColor}">${goldPerMin}</span>) gold</div>
           </div>
 
           ${playerItemsHtml}
@@ -762,7 +770,7 @@ async function loadMoreMatches(reset = false) {
                   <span class="opponent-assists">${m.opponent_assists}</span>
                   <span class="opponent-kda" style="color: ${opponentKdaColor}">| ${formatKDA(m.opponent_kda)} KDA</span>
                 </div>
-                <div class="opponent-gold">${m.opponent_cs} (<span style="color: ${opponentCsMinColor}">${opponentCsPerMin}</span>) CS • ${m.opponent_gold} gold</div>
+                <div class="opponent-gold">${m.opponent_cs} (<span style="color: ${opponentCsMinColor}">${opponentCsPerMin}</span>) CS • ${oppTotalGold}K (<span style="color: ${oppGoldMinColor}">${oppGoldPerMin}</span>) gold</div>
               </div>
               ${opponentItemsHtml}
             </div>
@@ -1083,6 +1091,14 @@ async function showMatchupGames() {
         const opponentItems = [m.opponent_item0, m.opponent_item1, m.opponent_item2, m.opponent_item3, m.opponent_item4, m.opponent_item5].filter(i => i);
         const opponentItemsHtml = renderItemSlots(opponentItems, m.opponent_summoner1Id, m.opponent_summoner2Id, 0.8);
 
+        // Calcul des golds
+        const totalGold = Math.round(m.goldEarned / 1000);
+        const goldPerMin = (m.goldEarned / gameDurationMins).toFixed();
+        const goldMinColor = getGoldMinColor(goldPerMin);
+        const oppTotalGold = Math.round(m.opponent_gold / 1000);
+        const oppGoldPerMin = (m.opponent_gold / gameDurationMins).toFixed();
+        const oppGoldMinColor = getGoldMinColor(oppGoldPerMin);
+
         const matchEl = document.createElement('div');
         matchEl.className = `match-row ${resultClass}`;
         matchEl.innerHTML = `
@@ -1106,7 +1122,7 @@ async function showMatchupGames() {
               <span class="match-assists">${m.assists}</span> |
               <span class="match-kda" style="color: ${kdaColor}">${formattedKDA} KDA</span>
             </div>
-            <div class="match-gold">${m.totalMinionsKilled} (<span style="color: ${csMinColor}">${csPerMin}</span>) CS • ${m.goldEarned} gold</div>
+            <div class="match-gold">${m.totalMinionsKilled} (<span style="color: ${csMinColor}">${csPerMin}</span>) CS • ${totalGold}K (<span style="color: ${goldMinColor}">${goldPerMin}</span>) gold</div>
           </div>
 
           ${playerItemsHtml}
@@ -1124,7 +1140,7 @@ async function showMatchupGames() {
                   <span class="opponent-assists">${m.opponent_assists}</span>
                   <span class="opponent-kda" style="color: ${opponentKdaColor}">| ${formatKDA(m.opponent_kda)} KDA</span>
                 </div>
-                <div class="opponent-gold">${m.opponent_cs} (<span style="color: ${opponentCsMinColor}">${opponentCsPerMin}</span>) CS • ${m.opponent_gold} gold</div>
+                <div class="opponent-gold">${m.opponent_cs} (<span style="color: ${opponentCsMinColor}">${opponentCsPerMin}</span>) CS • ${oppTotalGold}K (<span style="color: ${oppGoldMinColor}">${oppGoldPerMin}</span>) gold</div>
               </div>
               ${opponentItemsHtml}
             </div>

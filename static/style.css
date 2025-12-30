@@ -445,7 +445,7 @@ html {
   padding: 8px 12px;
 }
 
-.switch-btn, .back-btn, .db-action-btn, .filter-btn, .rank-btn {
+.switch-btn, .back-btn, .db-action-btn, .filter-btn, .rank-btn, .modal-btn {
   padding: 8px 12px;
   border: 1px solid var(--border);
   background: transparent;
@@ -464,7 +464,7 @@ html {
   border-color: var(--accent);
 }
 
-.switch-btn:hover, .back-btn:hover, .filter-btn:hover:not(.disabled), .rank-btn:hover:not(.disabled), .db-action-btn:hover {
+.switch-btn:hover, .back-btn:hover, .filter-btn:hover:not(.disabled), .rank-btn:hover:not(.disabled), .db-action-btn:hover, .modal-btn:hover {
   background: var(--bg);
   color: var(--accent);
   border-color: var(--accent);
@@ -475,15 +475,82 @@ html {
   cursor: not-allowed;
 }
 
-.update-btn {
+.update-btn, .ok-btn {
   border-color: #0adf7a;
 }
 
-.delete-btn {
+.update-btn:hover, .ok-btn:hover {
+  background: #0adf7a;
+  color: #fff;
+}
+
+.delete-btn, .cancel-btn {
   border-color: #ff5c66;
 }
 
-.switch-btn p, .db-action-btn p, .back-btn p {
+.delete-btn:hover, .cancel-btn:hover {
+  background: #ff5c66;
+  color: #fff;
+}
+
+.switch-btn p, .db-action-btn p, .back-btn p, .modal-btn p {
   margin-top: 3px;
   margin-bottom: 0px;
+}
+
+/* All confirms and alert boxes */
+.custom-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding-top: 5px;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 20px;
+  width: 400px;
+  text-align: center;
+  color: #e6dac2;
+}
+
+#modal-message {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.modal-form {
+  width: 100%; 
+  padding: 8px; 
+  margin: 10px 0; 
+  background: var(--bg2); 
+  border: 1px solid var(--border); 
+  color: #e6dac2; 
+  border-radius: 4px;
+}
+
+#modal-input {
+  font-size: 14px;
+  outline: none;
+}
+
+#modal-input:focus {
+  border-color: var(--accent);
 }

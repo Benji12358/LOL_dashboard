@@ -1256,48 +1256,129 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Fonction pour rendre les modales personnalisées (au lieu de confirm/alert)
+function showConfirm(message, callback) {
+  const modal = document.getElementById('custom-modal');
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-cancel').style.display = 'flex';
+  modal.style.display = 'flex';
+
+  const okBtn = document.getElementById('modal-ok');
+  const cancelBtn = document.getElementById('modal-cancel');
+
+  okBtn.onclick = () => {
+    modal.style.display = 'none';
+    callback(true);
+  };
+
+  cancelBtn.onclick = () => {
+    modal.style.display = 'none';
+    callback(false);
+  };
+}
+
+function showAlert(message) {
+  const modal = document.getElementById('custom-modal');
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-cancel').style.display = 'none';
+  document.getElementById('modal-ok-text').textContent = 'Continue';
+
+  modal.style.display = 'flex';
+
+  document.getElementById('modal-ok').onclick = () => {
+    modal.style.display = 'none';
+  };
+}
+
+function showPrompt(message, callback) {
+  const modal = document.getElementById('custom-modal');
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-input').style.display = 'block';
+  document.getElementById('modal-input').value = ''; // Vide le champ
+  document.getElementById('modal-cancel').style.display = 'flex';
+  modal.style.display = 'flex';
+
+  const okBtn = document.getElementById('modal-ok');
+  const cancelBtn = document.getElementById('modal-cancel');
+  const input = document.getElementById('modal-input');
+
+  // Focus sur l'input
+  setTimeout(() => input.focus(), 100);
+
+  const closeModal = () => {
+    modal.style.display = 'none';
+    document.getElementById('modal-input').style.display = 'none';
+    okBtn.onclick = null;
+    cancelBtn.onclick = null;
+  };
+
+  okBtn.onclick = () => {
+    const value = input.value.trim();
+    closeModal();
+    callback(value || null); // Renvoie null si vide
+  };
+
+  cancelBtn.onclick = () => {
+    closeModal();
+    callback(null);
+  };
+
+  // Appui sur Entrée = OK
+  input.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+      okBtn.click();
+    }
+  });
+}
+
   // Database action buttons
-  document.getElementById('db-update-btn').addEventListener('click', async () => {
-    if (confirm('This will update the database. Continue?')) {
+  document.getElementById('db-update-btn').addEventListener('click', () => {
+  showConfirm('This will update the database. Continue?', async (confirmed) => {
+    if (confirmed) {
       try {
         const res = await fetch('/api/database/update', { method: 'POST' });
         const data = await res.json();
-        alert(data.message || 'Database updated');
+        showAlert(data.message || 'Database updated');
         location.reload();
       } catch (err) {
-        alert('Error: ' + err.message);
+        showAlert('Error: ' + err.message);
       }
     }
   });
+});
 
-  document.getElementById('db-delete-btn').addEventListener('click', async () => {
-    if (confirm('This will DELETE ALL data from the database. Are you sure?')) {
+document.getElementById('db-delete-btn').addEventListener('click', () => {
+  showConfirm('This will DELETE ALL data from the database. Are you sure?', async (confirmed) => {
+    if (confirmed) {
       try {
         const res = await fetch('/api/database/delete', { method: 'POST' });
         const data = await res.json();
-        alert(data.message || 'Database cleared');
+        showAlert(data.message || 'Database cleared');
         location.reload();
       } catch (err) {
-        alert('Error: ' + err.message);
+        showAlert('Error: ' + err.message);
       }
     }
-  });// API key buttons
+  });
+});
+
+// API key buttons
   document.getElementById('test-api-btn').addEventListener('click', async () => {
     try {
       const res = await fetch('/api/test-api-key');
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        showAlert(data.message);
       } else {
-        alert(data.error);
+        showAlert(data.error);
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      showAlert('Error: ' + err.message);
     }
   });
 
   document.getElementById('update-api-btn').addEventListener('click', async () => {
-    const newKey = prompt('Enter new API key:');
+    const newKey = showPrompt('Enter a valid API key:');
     if (newKey) {
       try {
         const res = await fetch('/api/update-api-key', {
@@ -1307,12 +1388,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json();
         if (res.ok) {
-          alert(data.message);
+          showAlert(data.message);
         } else {
-          alert(data.error);
+          showAlert(data.error);
         }
       } catch (err) {
-        alert('Error: ' + err.message);
+        showAlert('Error: ' + err.message);
       }
     }
   });

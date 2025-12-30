@@ -225,12 +225,18 @@
       </div>
 
       <div id="matchup-stats-section" class="card" style="display: none;">
-        <div class="matchup-header-wrapper">
-          <button id="back-to-matchups" class="back-btn" style="display: none;">
+      
+        <div id="matchup-view-header" class="matchup-header-wrapper">
+          <button id="back-to-matchups-list" class="back-btn" style="display: none;">
             <img src="static/assets/webUI/back.png" class="img-header">
             <p>Back to matchups</p>
           </button>
-          <h2 id="matchup-title">Matchup Stats</h2>
+          <button id="back-from-matchup-games" class="back-btn" style="display: none;">
+            <img src="static/assets/webUI/back.png" class="img-header">
+            <p>Back</p>
+          </button>
+          <h2 id="matchup-view-title" style="margin: 0;">Matchup Stats</h2>
+        </div>
         
           <div id="matchup-lane-selector" class="filter-group" style="margin-right: 0; margin-left: auto; display: flex;">
             <label>Role:</label>
@@ -278,6 +284,17 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <div id="match-details-section" class="card" style="display: none;">
+        <div class="view-header">
+          <button id="back-from-details" class="back-btn">
+            <img src="static/assets/webUI/back.png" class="img-header">
+            <p>Back</p>
+          </button>
+          <h2 style="margin: 0;">Match details</h2>
+        </div>
+        <div id="match-details-content"></div>
       </div>
     </section>
   </main>

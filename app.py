@@ -1010,6 +1010,39 @@ def api_performance():
     except Exception as e:
         logger.error(f"api_performance error: {e}")
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/match-details')
+def match_details():
+    return render_template('match_details.html')
+
+@app.route('/api/match-details')
+def api_match_details():
+    try:
+        gameId = request.args.get('gameId')
+        if not gameId:
+            return jsonify({'error': 'gameId required'}), 400
+
+        # Fetch teams stats
+        teams = db.fetch_data('game_team', filters={'gameId': gameId})
+        
+        # Fetch participants
+        participants = db.fetch_data('game_participants', filters={'gameId': gameId})
+        
+        # Map roles
+        for p in participants:
+            if p['individualPosition'] == 'UTILITY':
+                p['individualPosition'] = 'SUPPORT'
+            if p['individualPosition'] == 'BOTTOM':
+                p['individualPosition'] = 'BOTTOM'  # ADC
+
+        return jsonify({
+            'teams': teams,
+            'participants': participants
+        })
+        
+    except Exception as e:
+        logger.error(f"api_match_details error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

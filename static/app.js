@@ -13,6 +13,9 @@ let sumspellNames = {};
 let currentRightView = 'recent';
 let currentRankFilter = 'all';
 let currentSelectedMatchup = null;
+let currentMatchGameId = null;
+let previousView = 'recent';
+let previousMatchup = null;
 
 // Définis ces constantes ici, elles sont globales
 const ranks = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER'];
@@ -125,7 +128,8 @@ function roleToIcon(role) {
     'JUNGLE': 'Jungle_icon',
     'MIDDLE': 'Middle_icon',
     'BOTTOM': 'Adc_icon',
-    'UTILITY': 'Support_icon'
+    'UTILITY': 'Support_icon',
+    'SUPPORT': 'Support_icon'
   };
   return roleMap[role] || null;
 }
@@ -730,6 +734,12 @@ async function loadMoreMatches(reset = false) {
         const opponentItemsHtml = renderItemSlots(opponentItems, m.opponent_summoner1Id, m.opponent_summoner2Id, 0.8);
 
         const matchEl = document.createElement('div');
+        matchEl.style.cursor = 'pointer';
+        matchEl.title = 'Click to see match details';
+        matchEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showMatchDetails(m.gameId);
+        });
         matchEl.className = `match-row ${resultClass}`;
         matchEl.innerHTML = `
           <div class="match-gameinfo">
@@ -805,6 +815,7 @@ async function switchRightView(view) {
   const performanceSection = document.getElementById('elo-performance-section');
   const last30Section = document.getElementById('last-30-section');
   const matchupSection = document.getElementById('matchup-stats-section');
+  const matchupContent = document.getElementById('matchup-content');
 
   const recentBtn = document.getElementById('recent-matches-btn');
   const performanceBtn = document.getElementById('elo-performance-btn');
@@ -847,7 +858,8 @@ async function switchRightView(view) {
     }
     renderLast30(window._last30Data);
   } else if (view === 'matchups') {
-    matchupSection.style.display = 'block';
+    matchupSection.style.display = 'flex';
+    matchupContent.style.display = 'block';
     matchupBtn.classList.add('active');
     updateRoleButtons();
     await renderMatchups();
@@ -913,6 +925,12 @@ function renderLast30(data) {
 async function renderMatchups() {
   const url = `/api/matchup-stats?puuid=${currentPuuid}&role=${currentLaneFilter}`;
   const data = await fetchJSON(url);
+
+  // Header principal
+  document.getElementById('back-to-matchups-list').style.display = 'none';
+  document.getElementById('back-from-matchup-games').style.display = 'none';
+  document.getElementById('matchup-lane-selector').style.display = 'flex';
+  document.getElementById('matchup-view-title').textContent = 'Matchup Stats';
 
   const container = document.getElementById('matchup-content');
   container.innerHTML = '';
@@ -1022,11 +1040,14 @@ async function showMatchupGames() {
   if (!currentSelectedMatchup) return;
 
   const { my_champ, my_role, opp_champ, opp_role } = currentSelectedMatchup;
+  previousView = "matchups-detailed";
+  previousMatchup = currentSelectedMatchup;
 
   // Afficher le bouton retour et changer le titre
-  document.getElementById('back-to-matchups').style.display = 'flex';
+  document.getElementById('back-to-matchups-list').style.display = 'flex';
+  document.getElementById('back-from-matchup-games').style.display = 'none';
   document.getElementById('matchup-lane-selector').style.display = 'none';
-  document.getElementById('matchup-title').textContent = `${my_champ} vs ${opp_champ} (${my_role})`;
+  document.getElementById('matchup-view-title').textContent = `${my_champ} vs ${opp_champ} (${my_role})`;
 
   // Masquer la liste des matchups
   document.getElementById('matchup-content').innerHTML = '<p>Chargement des matchs...</p>';
@@ -1146,6 +1167,14 @@ async function showMatchupGames() {
             </div>
           </div>
         `;
+
+        matchEl.style.cursor = 'pointer';
+        matchEl.title = 'Click to see match details';
+        matchEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showMatchDetails(m.gameId);
+        });
+
         dateDiv.appendChild(matchEl);
       });
 
@@ -1155,6 +1184,194 @@ async function showMatchupGames() {
   } catch (err) {
     console.error('Erreur lors du chargement des matchs du matchup:', err);
     container.innerHTML = '<p>Erreur lors du chargement des matchs.</p>';
+  }
+}
+
+function renderRoleLine(bluePlayer, redPlayer, role) {
+
+  // roleIcon and gameDuration
+  const roleIcon = roleToIcon(role);
+  const gameDurationMins = bluePlayer.gameDuration / 60;
+
+  // Blue player
+  bKDA = bluePlayer.kills + bluePlayer.assists;
+  if ( bluePlayer.deaths > 0 ) { bKDA = bKDA / bluePlayer.deaths };
+  const bKDAColor = getKdaColor(bKDA);
+  const bFormattedKDA = formatKDA(bKDA);
+  const bChampIcon = bluePlayer.championName.replace(/\s+/g, ''); 
+  const bCSPerMin = (bluePlayer.totalMinionsKilled / gameDurationMins).toFixed(1);
+  const bCSMinColor = getCSMinColor(bCSPerMin);
+  const bTotalGold = Math.round(bluePlayer.goldEarned / 1000);
+  const bGoldPerMin = (bluePlayer.goldEarned / gameDurationMins).toFixed(1);
+  const bGoldMinColor = getGoldMinColor(bGoldPerMin);
+
+  const bPlayerItems = [bluePlayer.item0, bluePlayer.item1, bluePlayer.item2, bluePlayer.item3, bluePlayer.item4, bluePlayer.item5].filter(i => i);
+  const bPlayerItemsHtml = renderItemSlots(bPlayerItems, bluePlayer.summoner1Id, bluePlayer.summoner2Id, 1);
+
+  // Red player
+  rKDA = redPlayer.kills + redPlayer.assists;
+  if ( redPlayer.deaths > 0 ) { rKDA = rKDA / redPlayer.deaths };
+  const rKDAColor = getKdaColor(rKDA);
+  const rFormattedKDA = formatKDA(rKDA);
+  const rChampIcon = redPlayer.championName.replace(/\s+/g, ''); 
+  const rCSPerMin = (redPlayer.totalMinionsKilled / gameDurationMins).toFixed(1);
+  const rCSMinColor = getCSMinColor(rCSPerMin);
+  const rTotalGold = Math.round(redPlayer.goldEarned / 1000);
+  const rGoldPerMin = (redPlayer.goldEarned / gameDurationMins).toFixed(1);
+  const rGoldMinColor = getGoldMinColor(rGoldPerMin);
+
+  const rPlayerItems = [redPlayer.item0, redPlayer.item1, redPlayer.item2, redPlayer.item3, redPlayer.item4, redPlayer.item5].filter(i => i);
+  const rPlayerItemsHtml = renderItemSlots(rPlayerItems, redPlayer.summoner1Id, redPlayer.summoner2Id, 1);
+
+  innerHTML = `
+
+    ${bPlayerItemsHtml}
+
+    <div class="match-stats">
+      <div class="match-kda-line">
+        <span class="match-kills">${bluePlayer.kills}</span> / 
+        <span class="match-deaths">${bluePlayer.deaths}</span> / 
+        <span class="match-assists">${bluePlayer.assists}</span> |
+        <span class="match-kda" style="color: ${bKDAColor}">${bFormattedKDA} KDA</span>
+      </div>
+      <div class="match-gold">${bluePlayer.totalMinionsKilled} (<span style="color: ${bCSMinColor}">${bCSPerMin}</span>) CS • ${bTotalGold}K (<span style="color: ${bGoldMinColor}">${bGoldPerMin}</span>) gold</div>
+    </div>
+
+    <div class="match-champ">
+      <div class="champ-wrapper">
+        <img src="static/assets/champion/${bChampIcon}.png" alt="${bluePlayer.champion_name}" class="match-champ-icon">
+      </div>
+    </div>
+
+    <div class="role-center">
+      <img src="static/assets/roles/${roleIcon}.png" alt="${role}">
+    </div>
+
+    <div class="match-champ">
+      <div class="champ-wrapper">
+        <img src="static/assets/champion/${rChampIcon}.png" alt="${redPlayer.champion_name}" class="match-champ-icon">
+      </div>
+    </div>
+
+    <div class="match-stats">
+      <div class="match-kda-line">
+        <span class="match-kills">${redPlayer.kills}</span> / 
+        <span class="match-deaths">${redPlayer.deaths}</span> / 
+        <span class="match-assists">${redPlayer.assists}</span> |
+        <span class="match-kda" style="color: ${rKDAColor}">${rFormattedKDA} KDA</span>
+      </div>
+      <div class="match-gold">${redPlayer.totalMinionsKilled} (<span style="color: ${rCSMinColor}">${rCSPerMin}</span>) CS • ${rTotalGold}K (<span style="color: ${rGoldMinColor}">${rGoldPerMin}</span>) gold</div>
+    </div>
+
+    ${rPlayerItemsHtml}
+  `;
+
+  return innerHTML
+}
+
+async function showMatchDetails(gameId) {
+  currentMatchGameId = gameId;
+  currentRightView = 'match-details';
+
+  // 1. Masquer TOUTES les autres sections de right-col
+  document.getElementById('recent-matches-section').style.display = 'none';
+  document.getElementById('elo-performance-section').style.display = 'none';
+  document.getElementById('last-30-section').style.display = 'none';
+  document.getElementById('matchup-stats-section').style.display = 'none';
+  document.getElementById('matchup-content').style.display = 'none';
+
+  // 2. Afficher la section des détails du match
+  const detailsSection = document.getElementById('match-details-section');
+  if (detailsSection) {
+    detailsSection.style.display = 'block';
+    console.log('Section match-details affichée');
+  } else {
+    console.error('Élément #match-details-section introuvable dans le DOM');
+    return;
+  }
+
+  const container = document.getElementById('match-details-content');
+  container.innerHTML = '<p>Chargement des détails du match...</p>';
+
+  try {
+    const data = await fetchJSON(`/api/match-details?gameId=${gameId}`);
+
+    container.innerHTML = '';
+
+    // Stats équipes
+    const blueTeam = data.teams.find(t => t.teamId === 100) || {};
+    const redTeam = data.teams.find(t => t.teamId === 200) || {};
+    const date = formatTimestamp(data.participants[1].gameEndTimestamp);
+
+    const dateDiv = document.createElement('div');
+
+    dateDiv.className = 'match-date-group';
+    dateDiv.style = "margin-bottom: -10px;"
+    dateDiv.innerHTML = `<div class="match-date"><img src="static/assets/webUI/calendar.png" class="img-header" style="margin-top: -5px;">${date}</div>`;
+
+    container.appendChild(dateDiv);
+
+    const teamDiv = document.createElement('div');
+    teamDiv.className = 'team-stats-row';
+    teamDiv.innerHTML = `
+      <div class="team-stats-blue">
+        <div class="objectives">
+          <img src="static/assets/objectives/nashor.png" class="img-objectives">
+          <p>${blueTeam.baron || 0}</p>
+        </div>
+        <div class="objectives">
+          <img src="static/assets/objectives/dragon.png" class="img-objectives">
+          <p>${blueTeam.dragon || 0}</p>
+        </div>
+        <div class="objectives">
+          <img src="static/assets/objectives/inhibitor.png" class="img-objectives">
+          <p>${blueTeam.inhibitor || 0}</p>
+        </div>
+        <div class="objectives">
+          <img src="static/assets/objectives/tower.png" class="img-objectives">
+          <p>${blueTeam.tower || 0}</p>
+        </div>
+        <h3>Blue team ${blueTeam.win === '1' ? '(Victory)' : '(Defeat)'}</h3>
+      </div>
+      <div class="team-stats-red">
+        <h3>Red team ${redTeam.win === '1' ? '(Victory)' : '(Defeat)'}</h3>
+        <div class="objectives">
+          <img src="static/assets/objectives/tower.png" class="img-objectives">
+          <p>${redTeam.tower || 0}</p>
+        </div>
+        <div class="objectives">
+          <img src="static/assets/objectives/inhibitor.png" class="img-objectives">
+          <p>${redTeam.inhibitor || 0}</p>
+        </div>
+        <div class="objectives">
+          <img src="static/assets/objectives/dragon.png" class="img-objectives">
+          <p>${redTeam.dragon || 0}</p>
+        </div>
+        <div class="objectives">
+          <img src="static/assets/objectives/nashor.png" class="img-objectives">
+          <p>${redTeam.baron || 0}</p>
+        </div>
+      </div>
+    `;
+    container.appendChild(teamDiv);
+
+    // Matchups par rôle
+    const rolesOrder = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT'];
+
+    rolesOrder.forEach(role => {
+      const bluePlayer = data.participants.find(p => p.teamId === 100 && (p.individualPosition || '').toUpperCase() === role) || null;
+      const redPlayer = data.participants.find(p => p.teamId === 200 && (p.individualPosition || '').toUpperCase() === role) || null;
+
+      const row = document.createElement('div');
+      row.className = 'role-matchup-row';
+      row.innerHTML = renderRoleLine(bluePlayer, redPlayer, role);
+
+      container.appendChild(row);
+    });
+
+  } catch (err) {
+    container.innerHTML = '<p>Erreur lors du chargement des détails du match.</p>';
+    console.error(err);
   }
 }
 
@@ -1242,6 +1459,26 @@ document.addEventListener('DOMContentLoaded', () => {
       matchesRoleFilter = this.dataset.value;
       loadMoreMatches(true);
     });
+  });
+
+  document.getElementById('back-from-details').addEventListener('click', () => {
+    document.getElementById('match-details-section').style.display = 'none';
+    document.getElementById('matchup-stats-section').style.display = 'flex';
+    document.getElementById('matchup-content').style.display = 'block';
+
+
+    if (previousView === 'matchups-detailed' && previousMatchup) {
+      // On revient à la liste des matchs du matchup
+      currentSelectedMatchup = previousMatchup;
+      showMatchupGames(); // ← cela mettra à jour le header correctement
+    } else {
+      switchRightView(previousView || 'recent');
+    }
+  });
+
+  document.getElementById('back-to-matchups-list').addEventListener('click', () => {
+    currentSelectedMatchup = null;
+    renderMatchups();
   });
 
   // Elo game mode filters
@@ -1435,11 +1672,11 @@ document.getElementById('db-delete-btn').addEventListener('click', () => {
     });
   });
 
-  document.getElementById('back-to-matchups').addEventListener('click', () => {
+  document.getElementById('back-to-matchups-list').addEventListener('click', () => {
     currentSelectedMatchup = null;
-    document.getElementById('back-to-matchups').style.display = 'none';
+    document.getElementById('back-to-matchups-list').style.display = 'none';
     document.getElementById('matchup-lane-selector').style.display = 'flex';
-    document.getElementById('matchup-title').textContent = 'Matchup Stats';
+    document.getElementById('matchup-view-title').textContent = 'Matchup Stats';
     renderMatchups(); // Recharge la liste des matchups
   });
 

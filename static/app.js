@@ -1614,26 +1614,28 @@ document.getElementById('db-delete-btn').addEventListener('click', () => {
     }
   });
 
-  document.getElementById('update-api-btn').addEventListener('click', async () => {
-    const newKey = showPrompt('Enter a valid API key:');
-    if (newKey) {
+  document.getElementById('update-api-btn').addEventListener('click', () => {
+  showPrompt('Enter new API key:', async (newKey) => {
+    if (newKey !== null && newKey.trim() !== '') {
       try {
         const res = await fetch('/api/update-api-key', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: newKey })
+          body: JSON.stringify({ api_key: newKey.trim() })
         });
         const data = await res.json();
         if (res.ok) {
-          showAlert(data.message);
+          showAlert(data.message || 'API key updated successfully');
         } else {
-          showAlert(data.error);
+          showAlert(data.error || 'Failed to update API key');
         }
       } catch (err) {
         showAlert('Error: ' + err.message);
       }
     }
+    // Si newKey === null → annulation → rien à faire
   });
+});
 
   // Load more matches button
   const loadMoreBtn = document.getElementById('load-more-btn');

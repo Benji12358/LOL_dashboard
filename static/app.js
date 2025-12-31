@@ -1067,6 +1067,7 @@ async function switchRightView(view) {
   performanceSection.style.display = 'none';
   last30Section.style.display = 'none';
   matchupSection.style.display = 'none';
+  matchupContent.style.display = 'none';
 
   // Déactiver tous les boutons
   recentBtn.classList.remove('active');

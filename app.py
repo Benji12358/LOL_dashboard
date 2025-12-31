@@ -219,7 +219,7 @@ def api_champions():
             entry['kills'] += (p.get('kills') or 0)
             entry['deaths'] += (p.get('deaths') or 0)
             entry['assists'] += (p.get('assists') or 0)
-            entry['cs'] += (p.get('totalMinionsKilled') or 0)
+            entry['cs'] += (p.get('totalMinionsKilled') + p.get('neutralMinionsKilled') or 0)
             entry['duration'] += (int(p.get('gameDuration') or 0))
 
             gid = p.get('gameId')
@@ -388,7 +388,7 @@ def api_matches():
                 opponent_deaths = opp.get('deaths') or 0
                 opponent_assists = opp.get('assists') or 0
                 opponent_kda = round((opponent_kills + opponent_assists) / max(1, opponent_deaths), 2)
-                opponent_cs = opp.get('totalMinionsKilled') or 0
+                opponent_cs = (opp.get('totalMinionsKilled') + opp.get('neutralMinionsKilled') or 0)
                 opponent_gold = opp.get('goldEarned') or 0
                 opponent_items = [opp.get(f'item{i}') or 0 for i in range(6)]
                 opponent_summoner1 = opp.get('summoner1Id') or 0
@@ -416,7 +416,7 @@ def api_matches():
                 'assists': assists,
                 'kda': kda,
                 'goldEarned': p.get('goldEarned'),
-                'totalMinionsKilled': p.get('totalMinionsKilled'),
+                'totalMinionsKilled': p.get('totalMinionsKilled') + p.get('neutralMinionsKilled'),
                 'item0': items[0],
                 'item1': items[1],
                 'item2': items[2],
@@ -734,7 +734,7 @@ def api_last_30_summary():
         avg_kills = sum(int(p.get('kills') or 0) for p in parts) / len(parts)
         avg_deaths = sum(int(p.get('deaths') or 0) for p in parts) / len(parts)
         avg_assists = sum(int(p.get('assists') or 0) for p in parts) / len(parts)
-        avg_cs = sum(int(p.get('totalMinionsKilled') or 0) for p in parts) / len(parts)
+        avg_cs = sum(int(p.get('totalMinionsKilled') or 0) + int(p.get('neutralMinionsKilled') or 0) for p in parts) / len(parts)
         avg_cs_min = avg_cs / (sum(int(p.get('gameDuration') or 0) for p in parts) / len(parts) / 60)
         avg_gold = sum(int(p.get('goldEarned') or 0) for p in parts) / len(parts)
         avg_gold_min = avg_gold / (sum(int(p.get('gameDuration') or 0) for p in parts) / len(parts) / 60)
@@ -776,7 +776,7 @@ def api_last_30_summary():
                 opp_avg_kills += int(opp.get('kills') or 0)
                 opp_avg_deaths += int(opp.get('deaths') or 0)
                 opp_avg_assists += int(opp.get('assists') or 0)
-                opp_avg_cs += int(opp.get('totalMinionsKilled') or 0)
+                opp_avg_cs += int(opp.get('totalMinionsKilled') or 0) + int(opp.get('neutralMinionsKilled') or 0)
                 opp_avg_gold += int(opp.get('goldEarned') or 0)
 
         opp_avg_kills /= len(parts)

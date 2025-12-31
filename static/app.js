@@ -1439,7 +1439,7 @@ function renderRoleLine(bluePlayer, redPlayer, role) {
   const bKDAColor = getKdaColor(bKDA);
   const bFormattedKDA = formatKDA(bKDA);
   const bChampIcon = bluePlayer.championName.replace(/\s+/g, ''); 
-  const bCSPerMin = (bluePlayer.totalMinionsKilled / gameDurationMins).toFixed(1);
+  const bCSPerMin = ((bluePlayer.totalMinionsKilled + bluePlayer.neutralMinionsKilled) / gameDurationMins).toFixed(1);
   const bCSMinColor = getCSMinColor(bCSPerMin);
   const bTotalGold = Math.round(bluePlayer.goldEarned / 1000);
   const bGoldPerMin = (bluePlayer.goldEarned / gameDurationMins).toFixed(1);
@@ -1454,7 +1454,7 @@ function renderRoleLine(bluePlayer, redPlayer, role) {
   const rKDAColor = getKdaColor(rKDA);
   const rFormattedKDA = formatKDA(rKDA);
   const rChampIcon = redPlayer.championName.replace(/\s+/g, ''); 
-  const rCSPerMin = (redPlayer.totalMinionsKilled / gameDurationMins).toFixed(1);
+  const rCSPerMin = ((redPlayer.totalMinionsKilled + redPlayer.neutralMinionsKilled) / gameDurationMins).toFixed(1);
   const rCSMinColor = getCSMinColor(rCSPerMin);
   const rTotalGold = Math.round(redPlayer.goldEarned / 1000);
   const rGoldPerMin = (redPlayer.goldEarned / gameDurationMins).toFixed(1);
@@ -1474,7 +1474,7 @@ function renderRoleLine(bluePlayer, redPlayer, role) {
         <span class="match-assists">${bluePlayer.assists}</span> |
         <span class="match-kda" style="color: ${bKDAColor}">${bFormattedKDA} KDA</span>
       </div>
-      <div class="match-gold">${bluePlayer.totalMinionsKilled} (<span style="color: ${bCSMinColor}">${bCSPerMin}</span>) CS • ${bTotalGold}K (<span style="color: ${bGoldMinColor}">${bGoldPerMin}</span>) gold</div>
+      <div class="match-gold">${bluePlayer.totalMinionsKilled + bluePlayer.neutralMinionsKilled} (<span style="color: ${bCSMinColor}">${bCSPerMin}</span>) CS • ${bTotalGold}K (<span style="color: ${bGoldMinColor}">${bGoldPerMin}</span>) gold</div>
     </div>
 
     <div class="match-champ">
@@ -1500,7 +1500,7 @@ function renderRoleLine(bluePlayer, redPlayer, role) {
         <span class="match-assists">${redPlayer.assists}</span> |
         <span class="match-kda" style="color: ${rKDAColor}">${rFormattedKDA} KDA</span>
       </div>
-      <div class="match-gold">${redPlayer.totalMinionsKilled} (<span style="color: ${rCSMinColor}">${rCSPerMin}</span>) CS • ${rTotalGold}K (<span style="color: ${rGoldMinColor}">${rGoldPerMin}</span>) gold</div>
+      <div class="match-gold">${redPlayer.totalMinionsKilled + redPlayer.neutralMinionsKilled} (<span style="color: ${rCSMinColor}">${rCSPerMin}</span>) CS • ${rTotalGold}K (<span style="color: ${rGoldMinColor}">${rGoldPerMin}</span>) gold</div>
     </div>
 
     ${rPlayerItemsHtml}

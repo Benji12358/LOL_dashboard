@@ -14,12 +14,14 @@
 </head>
 <body>
   <header class="header">
-    <div class="container header-content" >
+    <div class="container header-content">
       <div class="summoner-header">
         <div class="summoner-info">
           <h1 id="summoner-name">Loading...</h1>
           <div id="summoner-tag" class="tag">—</div>
-          
+        </div>
+
+        <div class="api-actions">
           <button id="db-update-btn" class="db-action-btn update-btn" title="Update Database">
             <img src="static/assets/webUI/update_db.png" class="img-header">
             <p>Update Database</p>
@@ -30,7 +32,7 @@
           </button>
         </div>
 
-        <div class="api-actions">
+        <div class="api-actions" style="margin-top: 0px;margin-bottom: auto;">
           <button id="test-api-btn" class="db-action-btn test-btn" title="Test API Key">
             <img src="static/assets/webUI/test_key.png" class="img-header">
             <p>Test Key</p>
@@ -39,6 +41,10 @@
             <img src="static/assets/webUI/edit_key.png" class="img-header">
             <p>Update Key</p>
           </button>
+        </div>
+
+        <div id="update-box" class="update-message" style="display: none">
+          <p id="update-text"></p>
         </div>
       </div>
 

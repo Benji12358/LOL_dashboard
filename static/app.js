@@ -171,6 +171,15 @@ function renderItemSlots(items, summoner1Id, summoner2Id, zoomlvl) {
 
 async function loadDefault() {
   try {
+
+    const status = await fetchJSON('/api/database-status');
+    
+    if (!status.has_data) {
+      // Base de données vide → demander les infos
+      showSetupModal();
+      return;
+    }
+
     await loadAssetNames();
     const summoner = await fetchJSON('/api/summoner-default');
     currentPuuid = summoner.puuid;
@@ -205,6 +214,236 @@ function updateRoleButtons() {
       btn.disabled = true;
     }
   });
+}
+
+async function startDbUpdate(isFirstSetup = false) {
+  const updateMessageBox = document.getElementById('update-box');
+  const updateTextEl = document.getElementById('update-text');
+  updateMessageBox.style.display = "block";
+  updateTextEl.textContent = 'Update in progress ...';
+
+  try {
+    // Lance l'update en arrière-plan
+    fetch('/api/database/update', { method: 'POST' });
+
+    // Polling du progress
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/update-progress');
+        console.log(res);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const percent = Math.round(data.percent || 0);
+        const timeLeft = Math.round(data.timeLeft || 0);
+        updateTextEl.textContent = `Update in progress ... ${percent}% ... ${timeLeft} min left`;
+
+        if (percent >= 100) {
+          clearInterval(interval);
+          updateTextEl.textContent = 'Update finished ! Reloading...';
+          if (!isFirstSetup) {
+            setTimeout(() => location.reload(), 2000);
+          }
+        }
+      } catch (err) {
+        console.error('Erreur polling progress:', err);
+      }
+    }, 1500);
+  } catch (err) {
+    updateTextEl.textContent = 'Erreur lors du lancement de la mise à jour.';
+    console.error(err);
+  }
+}
+
+// Fonction pour rendre les modales personnalisées (au lieu de confirm/alert)
+function showConfirm(message, callback) {
+  const modal = document.getElementById('custom-modal');
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-cancel').style.display = 'flex';
+  modal.style.display = 'flex';
+
+  const okBtn = document.getElementById('modal-ok');
+  const cancelBtn = document.getElementById('modal-cancel');
+
+  okBtn.onclick = () => {
+    modal.style.display = 'none';
+    callback(true);
+  };
+
+  cancelBtn.onclick = () => {
+    modal.style.display = 'none';
+    callback(false);
+  };
+}
+
+function showAlert(message) {
+  const modal = document.getElementById('custom-modal');
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-cancel').style.display = 'none';
+  document.getElementById('modal-ok-text').textContent = 'Continue';
+
+  modal.style.display = 'flex';
+
+  document.getElementById('modal-ok').onclick = () => {
+    modal.style.display = 'none';
+  };
+}
+
+function showPrompt(message, callback) {
+  const modal = document.getElementById('custom-modal');
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-input').style.display = 'block';
+  document.getElementById('modal-input').value = ''; // Vide le champ
+  document.getElementById('modal-cancel').style.display = 'flex';
+  modal.style.display = 'flex';
+
+  const okBtn = document.getElementById('modal-ok');
+  const cancelBtn = document.getElementById('modal-cancel');
+  const input = document.getElementById('modal-input');
+
+  // Focus sur l'input
+  setTimeout(() => input.focus(), 100);
+
+  const closeModal = () => {
+    modal.style.display = 'none';
+    document.getElementById('modal-input').style.display = 'none';
+    okBtn.onclick = null;
+    cancelBtn.onclick = null;
+  };
+
+  okBtn.onclick = () => {
+    const value = input.value.trim();
+    closeModal();
+    callback(value || null); // Renvoie null si vide
+  };
+
+  cancelBtn.onclick = () => {
+    closeModal();
+    callback(null);
+  };
+
+  // Appui sur Entrée = OK
+  input.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+      okBtn.click();
+    }
+  });
+}
+
+function showSetupModal() {
+  const modal = document.getElementById('custom-modal');
+  const message = document.getElementById('modal-message');
+  const input = document.getElementById('modal-input');
+  const okBtn = document.getElementById('modal-ok');
+  const cancelBtn = document.getElementById('modal-cancel');
+
+  modal.style = "background: rgba(0, 0, 0, 0.9);"
+
+  okBtn.onclick = null;
+  cancelBtn.onclick = null;
+
+  // Titre et message
+  message.innerHTML = `
+    <h3 style="margin-top:0;">Welcome !</h3>
+    <p>Your database is currently empty.</p>
+    <p>To start using this app, you must give :</p>
+    <ul style="text-align:left; margin:8px 0; padding-left:20px;">
+      <li>Your username (ex: Faker)</li>
+      <li>Your usertag (ex: KR1)</li>
+      <li>A valid RIOT API key</li>
+    </ul>
+  `;
+
+  // On va créer 3 inputs
+  input.style.display = 'none'; // on cache l'ancien input unique
+
+  // Créer un conteneur pour les 3 champs
+  let formContainer = document.getElementById('setup-form-container');
+  if (!formContainer) {
+    formContainer = document.createElement('div');
+    formContainer.id = 'setup-form-container';
+    formContainer.innerHTML = `
+      <input type="text" id="setup-username" placeholder="Username (ex: Faker)" class="modal-form" style="margin-bottom:8px;">
+      <input type="text" id="setup-tag" placeholder="Usertag (ex: KR1)" class="modal-form" style="margin-bottom:8px;">
+      <input type="text" id="setup-api-key" placeholder="RIOT API key" class="modal-form">
+    `;
+    message.after(formContainer);
+  }
+
+  // Vider les champs
+  document.getElementById('setup-username').value = '';
+  document.getElementById('setup-tag').value = '';
+  document.getElementById('setup-api-key').value = '';
+
+  // Afficher la modale
+  okBtn.querySelector('#modal-ok-text') ? okBtn.querySelector('#modal-ok-text').textContent = 'Proceed' : null;
+  modal.style.display = 'flex';
+
+  okBtn.onclick = async () => {
+
+    const username = document.getElementById('setup-username').value.trim();
+    const tag = document.getElementById('setup-tag').value.trim();
+    const apiKey = document.getElementById('setup-api-key').value.trim();
+
+    if (!username || !tag || !apiKey) {
+      showAlert('Tous les champs sont obligatoires !');
+      return;
+    }
+
+    // Désactiver les boutons
+    okBtn.disabled = true;
+
+    message.innerHTML += '<p style="margin-top:15px; color:#d7b04a;">Configuration en cours...</p>';
+
+    try {
+      // 1. Écrire toute la config en une fois
+      const configRes = await fetch('/api/write-user-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summoner_name: username,
+          summoner_tag: tag,
+          api_key: apiKey
+        })
+      });
+
+      if (!configRes.ok) {
+        const err = await configRes.json();
+        throw new Error(err.error || 'Erreur lors de l\'enregistrement de la configuration');
+      }
+
+      // 2. Récupérer le puuid
+      const summonerRes = await fetch(`/api/add-summoner`, { method: 'POST' });
+      if (summonerRes.status != 200) {
+        const err = await summonerRes.json();
+        throw new Error(err.error || 'Summoner could not be added to the database, verify the informations given');
+      }
+
+      // 3. Lancer l'update DB en background et poll le progress
+      modal.style.display = 'none';
+      startDbUpdate(true);
+
+      setTimeout(() => {
+        if (updateTextEl.textContent.includes('terminée')) {
+          location.reload();
+        }
+      }, 5000);
+
+    } catch (err) {
+  
+      console.error('Erreur configuration:', err);
+      okBtn.disabled = false;
+      cancelBtn.disabled = false;
+      message.querySelector('p:last-child')?.remove();
+      showAlert('Erreur : ' + err.message);
+    }
+  };
+
+  // // Gestion Annuler
+  // cancelBtn.onclick = () => {
+  //   modal.style.display = 'none';
+  //   showAlert('Vous devez configurer un profil pour utiliser le dashboard.');
+  // };
 }
 
 async function refresh() {
@@ -288,6 +527,7 @@ function drawRoleStatsChart(roleStats) {
   const data = validRoles.map(role => roleMap[role].matches);
   const winrates = validRoles.map(role => roleMap[role].winrate);
 
+  
   // Preload icons
   if (!window._roleIconCache) window._roleIconCache = {};
   validRoles.forEach(role => {
@@ -1493,99 +1733,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Fonction pour rendre les modales personnalisées (au lieu de confirm/alert)
-function showConfirm(message, callback) {
-  const modal = document.getElementById('custom-modal');
-  document.getElementById('modal-message').textContent = message;
-  document.getElementById('modal-cancel').style.display = 'flex';
-  modal.style.display = 'flex';
-
-  const okBtn = document.getElementById('modal-ok');
-  const cancelBtn = document.getElementById('modal-cancel');
-
-  okBtn.onclick = () => {
-    modal.style.display = 'none';
-    callback(true);
-  };
-
-  cancelBtn.onclick = () => {
-    modal.style.display = 'none';
-    callback(false);
-  };
-}
-
-function showAlert(message) {
-  const modal = document.getElementById('custom-modal');
-  document.getElementById('modal-message').textContent = message;
-  document.getElementById('modal-cancel').style.display = 'none';
-  document.getElementById('modal-ok-text').textContent = 'Continue';
-
-  modal.style.display = 'flex';
-
-  document.getElementById('modal-ok').onclick = () => {
-    modal.style.display = 'none';
-  };
-}
-
-function showPrompt(message, callback) {
-  const modal = document.getElementById('custom-modal');
-  document.getElementById('modal-message').textContent = message;
-  document.getElementById('modal-input').style.display = 'block';
-  document.getElementById('modal-input').value = ''; // Vide le champ
-  document.getElementById('modal-cancel').style.display = 'flex';
-  modal.style.display = 'flex';
-
-  const okBtn = document.getElementById('modal-ok');
-  const cancelBtn = document.getElementById('modal-cancel');
-  const input = document.getElementById('modal-input');
-
-  // Focus sur l'input
-  setTimeout(() => input.focus(), 100);
-
-  const closeModal = () => {
-    modal.style.display = 'none';
-    document.getElementById('modal-input').style.display = 'none';
-    okBtn.onclick = null;
-    cancelBtn.onclick = null;
-  };
-
-  okBtn.onclick = () => {
-    const value = input.value.trim();
-    closeModal();
-    callback(value || null); // Renvoie null si vide
-  };
-
-  cancelBtn.onclick = () => {
-    closeModal();
-    callback(null);
-  };
-
-  // Appui sur Entrée = OK
-  input.addEventListener('keyup', function(e) {
-    if (e.key === 'Enter') {
-      okBtn.click();
-    }
-  });
-}
-
-  // Database action buttons
-  document.getElementById('db-update-btn').addEventListener('click', () => {
-  showConfirm('This will update the database. Continue?', async (confirmed) => {
-    if (confirmed) {
-      try {
-        const res = await fetch('/api/database/update', { method: 'POST' });
-        const data = await res.json();
-        showAlert(data.message || 'Database updated');
-        location.reload();
-      } catch (err) {
-        showAlert('Error: ' + err.message);
-      }
-    }
-  });
+// Database action buttons
+document.getElementById('db-update-btn').addEventListener('click', () => {
+  startDbUpdate(false); // Sans confirm
 });
 
 document.getElementById('db-delete-btn').addEventListener('click', () => {
-  showConfirm('This will DELETE ALL data from the database. Are you sure?', async (confirmed) => {
+  showConfirm('This will delete ALL DATA from the database. Are you sure?', async (confirmed) => {
     if (confirmed) {
       try {
         const res = await fetch('/api/database/delete', { method: 'POST' });

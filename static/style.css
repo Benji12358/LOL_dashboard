@@ -45,7 +45,7 @@ html {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-top: 0px;
+  margin-top: 10px;
 }
 
 .api-actions {
@@ -643,3 +643,22 @@ html {
 
 .player-info.blue { color: #156ee2; }
 .player-info.red { color: #ff5c66; }
+
+#setup-form-container input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.summoner-header {
+  display: grid;
+  grid-template-columns: 3fr 4fr;
+  gap: 15px
+}
+
+.update-message p {
+  margin-top: 10px;
+  margin-bottom: auto;
+  text-align: center;
+  color: #d7b04a;
+  font-weight: bold;
+}

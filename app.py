@@ -4,6 +4,7 @@ from database import DatabaseManager
 import logging
 import sys
 import os
+import json
 from config import Config  # Import Config
 from api_handler import APIHandler  # Import APIHandler
 
@@ -31,27 +32,102 @@ def matches_page():
     """Render the matches page"""
     return render_template('matches.html')
 
-@app.route('/api/summoner-by-name')
-def api_summoner_by_name():
+@app.route('/api/add-summoner', methods=['POST'])
+def api_add_summoner():
     """
-    Get summoner puuid by gameName.
-    Query params:
-      - name (required): summoner name
-    Response:
-      { "puuid": "...", "summoner_name": "...", "summoner_tag": "..." }
+    Add summoner from infos in config file.
     """
     try:
-        name = request.args.get('name', '').strip()
-        if not name:
-            return jsonify({'error': 'name parameter required'}), 400
+        api = APIHandler()
+        db.create_tables()
+        user_config = config.read_user_config()
+        url_config = config.read_url_config()
+
+        api.test_api_connection(user_config, url_config)
+        account_puiid = api.fetch_puuid(user_config, url_config)
+        account_rank = api.fetch_summoner_rank(url_config, user_config, account_puiid)
         
-        summoners = db.fetch_data('summoner', filters={'summoner_name': name})
-        if summoners:
-            return jsonify(summoners[0])
-        return jsonify({'error': 'summoner not found'}), 404
+        summoner = {
+            "summoner_name": user_config['gameName'],
+            "summoner_tag": user_config['tagLine'],
+            "puuid": account_puiid,
+            "current_rank": account_rank
+        }
+        if db.insert_summoner(summoner) == 1:
+            return jsonify({'success': True, 'message': 'Summoner added to database !'})
+        else:
+            return jsonify({'success': False, 'message': 'Summoner could not be added to database'}), 400
     except Exception as e:
         logger.error(f"api_summoner_by_name error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/summoner-by-name')
+def api_summoner_by_name():
+    try:
+        full_name = request.args.get('name', '').strip()
+        if not full_name:
+            return jsonify({'error': 'name parameter required'}), 400
+        
+        # Gérer Username#Tag
+        if '#' in full_name:
+            name, tag = full_name.split('#', 1)
+        else:
+            name = full_name
+            tag = None  # Ou une valeur par défaut si besoin
+
+        filters = {'summoner_name': name}
+        if tag:
+            filters['summoner_tag'] = tag
+
+        summoners = db.fetch_data('summoner', filters=filters)
+        if summoners:
+            return jsonify(summoners[0])
+        
+        # Si pas dans DB, fetch depuis Riot et add
+        api = APIHandler()
+        user_config = config.read_user_config()
+        url_config = config.read_url_config()
+        puuid = api.fetch_puuid(user_config, url_config, name, tag)  # Adapte si ta fonction fetch_puuid accepte name/tag
+        
+        if not puuid:
+            return jsonify({'error': 'summoner not found in Riot API'}), 404
+        
+        # Ajoute à la DB (adapte les champs)
+        db.insert_data('summoner', {
+            'puuid': puuid,
+            'summoner_name': name,
+            'summoner_tag': tag
+        })
+
+        return jsonify({
+            'puuid': puuid,
+            'summoner_name': name,
+            'summoner_tag': tag
+        })
+    
+    except Exception as e:
+        logger.error(f"api_summoner_by_name error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/update-progress')
+def api_update_progress():
+    """
+    Retourne le contenu de progress.json pour le polling du frontend
+    """
+    progress_file = 'progress.json'
+    try:
+        if os.path.exists(progress_file):
+            with open(progress_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            # On s'assure que 'percent' est toujours présent
+            if 'percent' not in data:
+                data['percent'] = 0
+            return jsonify(data)
+        else:
+            return jsonify({'percent': 0})
+    except Exception as e:
+        logger.error(f"Erreur lecture progress.json : {e}")
+        return jsonify({'percent': 0})
 
 @app.route('/api/summary')
 def api_summary():
@@ -187,6 +263,19 @@ def api_champions():
     except Exception as e:
         logger.error(f"api_champions error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/database-status')
+def api_database_status():
+    """
+    Retourne si la base de données contient au moins un summoner.
+    """
+    try:
+        summoners = db.fetch_data('summoner')
+        has_summoner = len(summoners) > 0
+        return jsonify({'has_data': has_summoner})
+    except Exception as e:
+        logger.error(f"api_database_status error: {e}")
+        return jsonify({'has_data': False, 'error': str(e)}), 500
 
 @app.route('/api/summoner-default')
 def api_summoner_default():
@@ -413,7 +502,7 @@ def api_database_update():
     try:
         # Import and run main from test.py
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from test import main
+        from update import main
         
         logger.info("Starting database update...")
         main()
@@ -595,6 +684,33 @@ def api_update_api_key():
         return jsonify({'message': 'API key updated successfully'})
     except Exception as e:
         logger.error(f"api_update_api_key error: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/write-user-config', methods=['POST'])
+def api_write_user_config():
+    """
+    Écrit le username, usertag et api_key dans le fichier de config via la fonction existante.
+    """
+    try:
+        data = request.json
+        summoner_name = data.get('summoner_name')
+        summoner_tag = data.get('summoner_tag')
+        api_key = data.get('api_key')
+
+        if not summoner_name or not summoner_tag or not api_key:
+            return jsonify({'error': 'Tous les champs sont requis'}), 400
+
+        # Utilise ta fonction existante
+        config.write_user_config(
+            gameName=summoner_name,
+            tagLine=summoner_tag,
+            api_key=api_key
+        )
+
+        return jsonify({'message': 'Configuration enregistrée avec succès'})
+
+    except Exception as e:
+        logger.error(f"api_write_user_config error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/last-30-summary')

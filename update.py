@@ -95,7 +95,8 @@ def main():
                 "game_timestamp": game_json["info"]["gameEndTimestamp"],
                 "game_duration": game_json["info"]["gameDuration"],
                 "game_mode": game_json["info"]["queueId"],
-                "remake_status": game_json["info"]["participants"][0]["gameEndedInEarlySurrender"]
+                "remake_status": game_json["info"]["participants"][0]["gameEndedInEarlySurrender"],
+                "game_version": game_json["info"]["gameVersion"]
             }
 
             participants = db.cure_participants_data(game_json["info"]["participants"], additional_info, summoner, user_config, url_config, useful_data, api)

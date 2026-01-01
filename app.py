@@ -203,7 +203,7 @@ def api_champions():
         if not puuid:
             return jsonify({'error': 'puuid required'}), 400
 
-        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
         if not parts:
             return jsonify([])
 
@@ -312,10 +312,7 @@ def api_matches():
         gameMode = request.args.get('gameMode', 'all').lower()
         role = request.args.get('role', 'all').upper()
 
-        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
-        
-        # Filter out remakes
-        parts = [p for p in parts if p.get('gameStatusProcess') != 'Avoid']
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
 
         # Filter by game mode
         if gameMode != 'all':
@@ -467,8 +464,7 @@ def api_available_roles():
         if not puuid:
             return jsonify({'error': 'puuid required'}), 400
 
-        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
-        parts = [p for p in parts if p.get('gameStatusProcess') != 'Avoid']
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
         
         roles = set()
         for p in parts:
@@ -573,7 +569,7 @@ def api_ping_stats():
         if not puuid:
             return jsonify({'error': 'puuid required'}), 400
 
-        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
         if not parts:
             return jsonify({})
 
@@ -725,7 +721,7 @@ def api_last_30_summary():
         if not puuid:
             return jsonify({'error': 'puuid required'}), 400
 
-        parts = db.fetch_data('game_participants', filters={'puuid': puuid})
+        parts = db.fetch_data('game_participants', filters={'puuid': puuid, 'gameStatusProcess': 'Normal'})
         parts = sorted(parts, key=lambda x: int(x.get('gameEndTimestamp') or 0), reverse=True)[:30]
 
         if not parts:

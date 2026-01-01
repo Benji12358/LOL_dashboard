@@ -248,16 +248,12 @@ class DatabaseManager:
         for i in range(len(participants)):
             participant = participants[i]
             cured_participant = {x: participant[x] for x in useful_data["participant_data"] if x in participant}
-
-            if cured_participant["puuid"] == summoner["puuid"]:
-                participant_rank = summoner["current_rank"]
-            else:
-                participant_rank = self.set_summoner_rank(user_config, url_config, api, participant["puuid"])
             
             cured_participant["current_rank"] = participant_rank
             cured_participant["gameId"] = additional_info["game_id"]
             cured_participant["gameEndTimestamp"] = additional_info["game_timestamp"]
             cured_participant["gameDuration"] = additional_info["game_duration"]
+            cured_participant["gameVersion"] = additional_info["game_version"]
 
             match additional_info["game_mode"]:
                 case 400:
@@ -266,17 +262,20 @@ class DatabaseManager:
                     cured_participant["gameMode"] = "Ranked Solo"
                 case 440:
                     cured_participant["gameMode"] = "Ranked Flex"
-                case 450:
-                    cured_participant["gameMode"] = "ARAM"
                 case 480:
                     cured_participant["gameMode"] = "Swift Play"
                 case _:
                     cured_participant["gameMode"] = "other"
 
-            if additional_info["remake_status"] or cured_participant["gameMode"] == "ARAM"  or cured_participant["gameMode"] == "other":
+            if additional_info["remake_status"] or cured_participant["gameMode"] == "other":
                 cured_participant["gameStatusProcess"] = "Avoid"
             else:
                 cured_participant["gameStatusProcess"] = "Normal"
+
+                if cured_participant["puuid"] == summoner["puuid"]:
+                    participant_rank = summoner["current_rank"]
+                else:
+                    participant_rank = self.set_summoner_rank(user_config, url_config, api, participant["puuid"])
 
             cured_participants.append(cured_participant)
 

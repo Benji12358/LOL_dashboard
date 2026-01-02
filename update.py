@@ -43,6 +43,9 @@ def main():
     # Initialisation de la base de données
     db = DatabaseManager()
     db.create_tables()
+
+    with open('progress.json', 'w') as f:
+        json.dump({'percent': 0, 'message': 'Update started'}, f)
     
     # Task 1: Fetch et save summoner
     logger.info("=== Step 1: Fetch and Save summoner ===")

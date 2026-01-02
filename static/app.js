@@ -230,7 +230,6 @@ async function startDbUpdate(isFirstSetup = false) {
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/update-progress');
-        console.log(res);
         if (!res.ok) return;
 
         const data = await res.json();
@@ -1525,9 +1524,7 @@ async function showMatchDetails(gameId) {
   const detailsSection = document.getElementById('match-details-section');
   if (detailsSection) {
     detailsSection.style.display = 'block';
-    console.log('Section match-details affichée');
   } else {
-    console.error('Élément #match-details-section introuvable dans le DOM');
     return;
   }
 

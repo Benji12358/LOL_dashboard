@@ -249,7 +249,6 @@ class DatabaseManager:
             participant = participants[i]
             cured_participant = {x: participant[x] for x in useful_data["participant_data"] if x in participant}
             
-            cured_participant["current_rank"] = participant_rank
             cured_participant["gameId"] = additional_info["game_id"]
             cured_participant["gameEndTimestamp"] = additional_info["game_timestamp"]
             cured_participant["gameDuration"] = additional_info["game_duration"]
@@ -269,6 +268,7 @@ class DatabaseManager:
 
             if additional_info["remake_status"] or cured_participant["gameMode"] == "other":
                 cured_participant["gameStatusProcess"] = "Avoid"
+                cured_participant["current_rank"] = "Unranked"
             else:
                 cured_participant["gameStatusProcess"] = "Normal"
 
@@ -276,6 +276,8 @@ class DatabaseManager:
                     participant_rank = summoner["current_rank"]
                 else:
                     participant_rank = self.set_summoner_rank(user_config, url_config, api, participant["puuid"])
+
+                cured_participant["current_rank"] = participant_rank
 
             cured_participants.append(cured_participant)
 

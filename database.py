@@ -272,6 +272,7 @@ class DatabaseManager:
             else:
                 cured_participant["gameStatusProcess"] = "Normal"
 
+                # Get summoner's rank
                 if cured_participant["puuid"] == summoner["puuid"]:
                     participant_rank = summoner["current_rank"]
                 else:
@@ -279,7 +280,29 @@ class DatabaseManager:
 
                 cured_participant["current_rank"] = participant_rank
 
+
             cured_participants.append(cured_participant)
+
+        # Fix issues related to individualPosition
+        if cured_participants[0]["gameMode"] != "other" :        
+
+            actualPositions = [x["individualPosition"] for x in cured_participants]
+            nbPositions = [actualPositions.count(x) for x in set(actualPositions)] # should be [2, 2, 2, 2, 2]
+
+            if (nbPositions != [2, 2, 2, 2, 2]):
+                # First team
+                cured_participants[0]["individualPosition"] = "TOP"
+                cured_participants[1]["individualPosition"] = "JUNGLE"
+                cured_participants[2]["individualPosition"] = "MIDDLE"
+                cured_participants[3]["individualPosition"] = "BOTTOM"
+                cured_participants[4]["individualPosition"] = "UTILITY"
+
+                # Second team
+                cured_participants[5]["individualPosition"] = "TOP"
+                cured_participants[6]["individualPosition"] = "JUNGLE"
+                cured_participants[7]["individualPosition"] = "MIDDLE"
+                cured_participants[8]["individualPosition"] = "BOTTOM"
+                cured_participants[9]["individualPosition"] = "UTILITY"
 
         return cured_participants
 

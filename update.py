@@ -105,11 +105,13 @@ def main():
             participants = db.cure_participants_data(game_json["info"]["participants"], additional_info, summoner, user_config, url_config, useful_data, api)
             db.insert_participants(participants)
 
-            team_blue = db.cure_team_data(game_json["info"], useful_data, 0)
-            team_red = db.cure_team_data(game_json["info"], useful_data, 1)
+            if len(game_json["info"]["teams"]) == 2:
 
-            db.insert_team(team_blue)
-            db.insert_team(team_red)
+                team_blue = db.cure_team_data(game_json["info"], useful_data, 0)
+                team_red = db.cure_team_data(game_json["info"], useful_data, 1)
+
+                db.insert_team(team_blue)
+                db.insert_team(team_red)
 
             progress = {
                 "percent": round((i / len(games_id_not_stored_yet)) * 100, 1),

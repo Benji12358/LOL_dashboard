@@ -422,12 +422,6 @@ function showSetupModal() {
       modal.style.display = 'none';
       startDbUpdate(true);
 
-      setTimeout(() => {
-        if (updateTextEl.textContent.includes('terminée')) {
-          location.reload();
-        }
-      }, 5000);
-
     } catch (err) {
   
       console.error('Erreur configuration:', err);

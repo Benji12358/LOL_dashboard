@@ -45,7 +45,7 @@ def main():
     db.create_tables()
 
     with open('progress.json', 'w') as f:
-        json.dump({'percent': 0, 'message': 'Update started'}, f)
+        json.dump({'percent': 0, 'message': 'Update started ...'}, f)
     
     # Task 1: Fetch et save summoner
     logger.info("=== Step 1: Fetch and Save summoner ===")
@@ -80,9 +80,11 @@ def main():
         
     else:
         logger.info(f"{len(games_id_not_stored_yet)} new games to process.")
+        percent = 0
+        timeLeft = estimate_time_to_fill_db(games_id_not_stored_yet)
         progress = {
-            "percent": round((0 / len(games_id_not_stored_yet)) * 100, 1),
-            "timeLeft": estimate_time_to_fill_db(games_id_not_stored_yet)
+            "percent": percent,
+            "message": f"Update in progress ... {timeLeft} min left ({percent}%)"
         }
 
         with open('progress.json', 'w') as f:
@@ -113,9 +115,11 @@ def main():
                 db.insert_team(team_blue)
                 db.insert_team(team_red)
 
+            percent = round((i / len(games_id_not_stored_yet)) * 100, 1)
+            timeLeft = estimate_time_to_fill_db(games_id_not_stored_yet[i:])
             progress = {
-                "percent": round((i / len(games_id_not_stored_yet)) * 100, 1),
-                "timeLeft": estimate_time_to_fill_db(games_id_not_stored_yet[i:])
+                "percent": percent,
+                "message": f"Update in progress ... {timeLeft} min left ({percent}%)"
             }
 
             with open('progress.json', 'w') as f:
@@ -124,8 +128,6 @@ def main():
         logger.info(f"Inserted {len(all_games_id)} games")
         with open('progress.json', 'w') as f:
             json.dump({'percent': 100, 'message': 'Update finished'}, f)
-
-        logger.info("Mise à jour terminée avec succès")
         
 
 if __name__ == '__main__':

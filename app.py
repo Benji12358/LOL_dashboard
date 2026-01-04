@@ -119,9 +119,6 @@ def api_update_progress():
         if os.path.exists(progress_file):
             with open(progress_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            # On s'assure que 'percent' est toujours présent
-            if 'percent' not in data:
-                data['percent'] = 0
             return jsonify(data)
         else:
             return jsonify({'percent': 0})

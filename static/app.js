@@ -216,7 +216,30 @@ function updateRoleButtons() {
   });
 }
 
-async function startDbUpdate(isFirstSetup = false) {
+function pollingDB() {
+  const updateMessageBox = document.getElementById('update-box');
+  const updateTextEl = document.getElementById('update-text');
+  updateMessageBox.style.display = "block";
+  
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/update-progress');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      updateTextEl.textContent = data.message;
+
+      if (data.percent >= 100) {
+        clearInterval(interval);
+        setTimeout(() => location.reload(), 2000);
+      }
+    } catch (err) {
+      console.error('Erreur polling progress:', err);
+    }
+  }, 1500);
+}
+
+async function startDbUpdate() {
   const updateMessageBox = document.getElementById('update-box');
   const updateTextEl = document.getElementById('update-text');
   updateMessageBox.style.display = "block";
@@ -227,27 +250,8 @@ async function startDbUpdate(isFirstSetup = false) {
     fetch('/api/database/update', { method: 'POST' });
 
     // Polling du progress
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch('/api/update-progress');
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const percent = Math.round(data.percent || 0);
-        const timeLeft = Math.round(data.timeLeft || 0);
-        updateTextEl.textContent = `Update in progress ... ${percent}% ... ${timeLeft} min left`;
-
-        if (percent >= 100) {
-          clearInterval(interval);
-          updateTextEl.textContent = 'Update finished ! Reloading...';
-          if (!isFirstSetup) {
-            setTimeout(() => location.reload(), 2000);
-          }
-        }
-      } catch (err) {
-        console.error('Erreur polling progress:', err);
-      }
-    }, 1500);
+    pollingDB();
+    
   } catch (err) {
     updateTextEl.textContent = 'Erreur lors du lancement de la mise à jour.';
     console.error(err);
@@ -421,6 +425,8 @@ function showSetupModal() {
       // 3. Lancer l'update DB en background et poll le progress
       modal.style.display = 'none';
       startDbUpdate(true);
+      message.innerHTML += '<p style="margin-top:15px; color:#d7b04a;">Updating database ...</p>';
+      setTimeout(() => location.reload(), 2000);
 
     } catch (err) {
   
@@ -473,6 +479,19 @@ async function refresh() {
     // Opponent Elo Distribution
     window._lastOpponentData = opponentData.opponents || [];
     drawOpponentEloDistribution(window._lastOpponentData);
+
+    // Check if DB update ongoing
+    try {
+      const res = await fetch('/api/update-progress');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (data.percent != 100) {
+        pollingDB();
+      }
+    } catch (err) {
+      console.error('Issue with polling after reloading:', err);
+    }
 
     // External links (Mobalytics, dpm.lol, League of Graphs)
     try {
